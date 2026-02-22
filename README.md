@@ -69,8 +69,14 @@ Set these GitHub repository secrets before running it:
 - `FASTHOSTS_FTP_HOST` (for example `ftp.cluster0.hosting.ovh.net` or your Fasthosts FTP host)
 - `FASTHOSTS_FTP_USERNAME`
 - `FASTHOSTS_FTP_PASSWORD`
-- `FASTHOSTS_FTP_TARGET_DIR` (for example `/public_html/`)
 - `NEXT_PUBLIC_API_BASE_URL` (public URL of your API, for example `https://api.gb-ai.co.uk`)
+
+Fasthosts directory notes used by this workflow:
+
+- FTP login lands in `htdocs`; workflow uploads there by default (`server-dir: ./`).
+- `cgi-bin` is reserved for executable CGI content; do not deploy site HTML/JS there.
+- `logfiles` is for logs only; do not upload application files there.
+- For ASP.NET/.NET private runtime data, create a sibling `private` folder (outside `htdocs`) and keep secrets/non-public files there.
 
 ## Quality checks
 

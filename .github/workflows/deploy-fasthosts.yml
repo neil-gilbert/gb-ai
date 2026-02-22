@@ -39,7 +39,6 @@ jobs:
           test -n "${{ secrets.FASTHOSTS_FTP_HOST }}" || (echo "Missing FASTHOSTS_FTP_HOST" && exit 1)
           test -n "${{ secrets.FASTHOSTS_FTP_USERNAME }}" || (echo "Missing FASTHOSTS_FTP_USERNAME" && exit 1)
           test -n "${{ secrets.FASTHOSTS_FTP_PASSWORD }}" || (echo "Missing FASTHOSTS_FTP_PASSWORD" && exit 1)
-          test -n "${{ secrets.FASTHOSTS_FTP_TARGET_DIR }}" || (echo "Missing FASTHOSTS_FTP_TARGET_DIR" && exit 1)
           test -n "${{ secrets.NEXT_PUBLIC_API_BASE_URL }}" || (echo "Missing NEXT_PUBLIC_API_BASE_URL" && exit 1)
 
       - name: Build static web export
@@ -55,5 +54,5 @@ jobs:
           password: ${{ secrets.FASTHOSTS_FTP_PASSWORD }}
           protocol: ftps
           local-dir: apps/web/out/
-          server-dir: ${{ secrets.FASTHOSTS_FTP_TARGET_DIR }}
+          server-dir: ./
           dangerous-clean-slate: false
