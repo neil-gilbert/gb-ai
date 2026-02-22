@@ -1,9 +1,9 @@
 "use client";
 
 import { useChatSession } from "@/lib/useChatSession";
-import { ArrowUp, Plus, Settings, Share, X, Zap } from "lucide-react";
+import { ArrowUp, Menu, Plus, Settings, Share, X, Zap } from "lucide-react";
 import Image from "next/image";
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 export default function HomePage() {
   const {
@@ -26,13 +26,45 @@ export default function HomePage() {
   } = useChatSession();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const sidebarPanelId = useId();
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  useEffect(() => {
+    if (!isSidebarOpen) {
+      return;
+    }
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isSidebarOpen]);
+
+  useEffect(() => {
+    if (!isSidebarOpen) {
+      return;
+    }
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsSidebarOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleEscape);
+    return () => {
+      window.removeEventListener("keydown", handleEscape);
+    };
+  }, [isSidebarOpen]);
+
   return (
-    <div className="flex h-screen overflow-hidden bg-[#F8FAFC] font-sans text-[#0B1221] selection:bg-[#00247D] selection:text-white">
+    <div className="relative flex h-screen overflow-hidden bg-[#F8FAFC] font-sans text-[#0B1221] selection:bg-[#00247D] selection:text-white">
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
         <div
           className="absolute -top-[20%] -right-[10%] h-[800px] w-[800px] animate-pulse rounded-full bg-gradient-to-br from-[#00247D]/10 to-[#C8102E]/10 opacity-60 blur-3xl"
@@ -41,7 +73,21 @@ export default function HomePage() {
         <div className="absolute top-[40%] -left-[10%] h-[600px] w-[600px] rounded-full bg-blue-100/40 opacity-50 blur-3xl" />
       </div>
 
-      <aside className="relative z-20 m-4 flex w-[280px] flex-col overflow-hidden rounded-[2rem] border border-white/50 bg-white/70 shadow-xl shadow-blue-900/5 backdrop-blur-xl">
+      {isSidebarOpen ? (
+        <button
+          type="button"
+          className="fixed inset-0 z-20 bg-slate-900/30 backdrop-blur-[1px] md:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+          aria-label="Close sidebar"
+        />
+      ) : null}
+
+      <aside
+        id={sidebarPanelId}
+        className={`fixed inset-y-3 left-3 z-30 flex w-[280px] max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-[2rem] border border-white/50 bg-white/85 shadow-xl shadow-blue-900/10 backdrop-blur-xl transition-transform duration-300 md:relative md:inset-auto md:z-20 md:m-4 md:w-[280px] md:max-w-none ${
+          isSidebarOpen ? "translate-x-0" : "-translate-x-[120%]"
+        } md:translate-x-0`}
+      >
         <div className="absolute top-0 left-0 h-1 w-full bg-gradient-to-r from-[#00247D] via-[#C8102E] to-[#00247D]" />
 
         <div className="flex h-24 items-center px-8 pt-4">
@@ -55,6 +101,7 @@ export default function HomePage() {
             type="button"
             onClick={() => {
               void handleNewChat();
+              setIsSidebarOpen(false);
             }}
             className="group flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00247D] to-[#001B54] px-4 py-3 text-white shadow-lg shadow-blue-900/20 transition-all duration-300 hover:scale-[1.02] hover:shadow-blue-900/30"
           >
@@ -69,7 +116,10 @@ export default function HomePage() {
             <button
               key={chat.id}
               type="button"
-              onClick={() => setActiveChatId(chat.id)}
+              onClick={() => {
+                setActiveChatId(chat.id);
+                setIsSidebarOpen(false);
+              }}
               className={`flex w-full items-center rounded-xl p-3 text-left transition-all duration-200 ${
                 activeChatId === chat.id
                   ? "border border-blue-50 bg-white text-[#00247D] shadow-md"
@@ -106,9 +156,19 @@ export default function HomePage() {
         </div>
       </aside>
 
-      <main className="relative z-10 m-4 ml-0 flex flex-1 flex-col overflow-hidden rounded-[2rem] border border-white/60 bg-white/40 shadow-2xl shadow-slate-200/50 backdrop-blur-md">
-        <header className="flex h-20 items-center justify-between border-b border-white/50 bg-white/30 px-8 backdrop-blur-md">
+      <main className="relative z-10 m-3 flex min-w-0 flex-1 flex-col overflow-hidden rounded-[2rem] border border-white/60 bg-white/40 shadow-2xl shadow-slate-200/50 backdrop-blur-md md:m-4 md:ml-0">
+        <header className="flex h-20 items-center justify-between border-b border-white/50 bg-white/30 px-4 backdrop-blur-md md:px-8">
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsSidebarOpen((prev) => !prev)}
+              className="mr-1 flex h-9 w-9 items-center justify-center rounded-full bg-white text-slate-500 shadow-sm transition-colors hover:text-[#00247D] md:hidden"
+              aria-label="Toggle sidebar"
+              aria-controls={sidebarPanelId}
+              aria-expanded={isSidebarOpen}
+            >
+              <Menu size={16} />
+            </button>
             <span className="relative flex h-3 w-3">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
               <span className="relative inline-flex h-3 w-3 rounded-full bg-green-500" />
