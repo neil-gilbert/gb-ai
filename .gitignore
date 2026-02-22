@@ -1,0 +1,27 @@
+# Node
+node_modules/
+.next/
+out/
+dist/
+.npm-cache/
+
+# .NET
+bin/
+obj/
+TestResults/
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Local tooling
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
+# Docker data
+.pgdata/
+.minio/

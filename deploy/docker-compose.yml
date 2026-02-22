@@ -1,0 +1,65 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: hyoka
+      POSTGRES_USER: hyoka
+      POSTGRES_PASSWORD: hyoka
+    ports:
+      - "5432:5432"
+    volumes:
+      - ../.pgdata:/var/lib/postgresql/data
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio123
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - ../.minio:/data
+
+  api:
+    build:
+      context: ..
+      dockerfile: src/Hyoka.Api/Dockerfile
+    depends_on:
+      - postgres
+      - minio
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__Postgres: Host=postgres;Port=5432;Database=hyoka;Username=hyoka;Password=hyoka
+      Storage__ServiceUrl: http://minio:9000
+      Storage__AccessKey: minio
+      Storage__SecretKey: minio123
+      Storage__Bucket: hyoka-attachments
+      Storage__UsePathStyle: "true"
+      Stripe__SecretKey: ${Stripe__SecretKey:-}
+      Stripe__WebhookSecret: ${Stripe__WebhookSecret:-}
+      Providers__OpenAI__ApiKey: ${Providers__OpenAI__ApiKey:-}
+      Providers__Anthropic__ApiKey: ${Providers__Anthropic__ApiKey:-}
+      Providers__OpenRouter__ApiKey: ${Providers__OpenRouter__ApiKey:-}
+      Clerk__Issuer: ${Clerk__Issuer:-}
+      Clerk__Audience: ${Clerk__Audience:-}
+    ports:
+      - "8080:8080"
+
+  web:
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+    depends_on:
+      - api
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:8080
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-}
+      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:-}
+    ports:
+      - "3000:3000"

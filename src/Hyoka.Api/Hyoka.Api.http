@@ -1,0 +1,6 @@
+@Hyoka.Api_HostAddress = http://localhost:5128
+
+GET {{Hyoka.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
