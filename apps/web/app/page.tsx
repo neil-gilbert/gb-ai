@@ -1,788 +1,234 @@
 "use client";
 
-import {
-  ChevronLeft,
-  ChevronRight,
-  CirclePlus,
-  LogIn,
-  LogOut,
-  Paperclip,
-  Search,
-  Send,
-  Shield,
-  UserCircle2,
-  X,
-} from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { apiFetch, buildAuthHeaders, toApiUrl } from "@/lib/api";
-import type { ChatMessage, ChatSummary, ModelEntry } from "@/lib/types";
-
-const EXAMPLE_PROMPTS = [
-  "Draft a launch email for a new subscription tier",
-  "Summarize this policy document in simple language",
-  "Create a 7-day onboarding plan for first-time users",
-  "Help me choose a model for image + document tasks",
-];
-
-const ACCEPTED_MIME_TYPES = new Set([
-  "image/png",
-  "image/jpeg",
-  "image/webp",
-  "image/gif",
-  "application/pdf",
-  "text/plain",
-  "text/markdown",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-]);
-
-const MAX_FILE_SIZE_BYTES = 1024 * 1024;
-
-type LocalFile = {
-  localId: string;
-  file: File;
-};
-
-type UiMessage = {
-  id: string;
-  role: "user" | "assistant" | "system";
-  text: string;
-  pending?: boolean;
-};
-
-type DevSession = {
-  userId: string;
-  email: string;
-  role: "user" | "admin";
-};
-
-type AuthMeResponse = {
-  user: { id: string; email: string; role: string };
-  plan: { name: string };
-  usage: { dailyCreditsUsed: number; dailyCreditLimit: number };
-};
-
-function toUiMessages(messages: ChatMessage[]): UiMessage[] {
-  return messages.map((m) => ({
-    id: m.id,
-    role: m.role,
-    text: m.displayText,
-  }));
-}
-
-function utcDayKey(iso: string): string {
-  return new Date(iso).toISOString().slice(0, 10);
-}
-
-function utcDayLabel(dayKey: string): string {
-  const [year, month, day] = dayKey.split("-").map(Number);
-  const date = new Date(Date.UTC(year, month - 1, day));
-  return new Intl.DateTimeFormat("en-US", {
-    timeZone: "UTC",
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  }).format(date);
-}
-
-function isMimeAllowed(file: File): boolean {
-  if (ACCEPTED_MIME_TYPES.has(file.type)) {
-    return true;
-  }
-
-  const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
-  return ["png", "jpg", "jpeg", "webp", "gif", "pdf", "txt", "md", "docx"].includes(ext);
-}
-
-function streamChunks(raw: string): string[] {
-  const events = raw.split("\n\n");
-  return events.filter(Boolean);
-}
-
-function loadDevSession(): DevSession | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  const userId = window.localStorage.getItem("hyoka_dev_user_id");
-  const email = window.localStorage.getItem("hyoka_dev_email");
-  const role = (window.localStorage.getItem("hyoka_dev_role") as "user" | "admin" | null) ?? "user";
-
-  if (!userId || !email) {
-    return null;
-  }
-
-  return { userId, email, role };
-}
-
-function saveDevSession(session: DevSession | null) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  if (!session) {
-    window.localStorage.removeItem("hyoka_dev_user_id");
-    window.localStorage.removeItem("hyoka_dev_email");
-    window.localStorage.removeItem("hyoka_dev_role");
-    return;
-  }
-
-  window.localStorage.setItem("hyoka_dev_user_id", session.userId);
-  window.localStorage.setItem("hyoka_dev_email", session.email);
-  window.localStorage.setItem("hyoka_dev_role", session.role);
-}
+import { useChatSession } from "@/lib/useChatSession";
+import { ArrowUp, Plus, Settings, Share, X, Zap } from "lucide-react";
+import Image from "next/image";
+import { useEffect, useRef } from "react";
 
 export default function HomePage() {
-  const [session, setSession] = useState<DevSession | null>(null);
-  const [showLoginForm, setShowLoginForm] = useState(false);
-  const [loginEmail, setLoginEmail] = useState("demo@gb-ai.local");
-  const [loginRole, setLoginRole] = useState<"user" | "admin">("user");
+  const {
+    session,
+    chats,
+    activeChatId,
+    setActiveChatId,
+    messages,
+    input,
+    setInput,
+    sendMessage,
+    isSending,
+    handleNewChat,
+    handleLogin,
+    fileInputRef,
+    handleFilesSelected,
+    pendingFiles,
+    removePendingFile,
+    error,
+  } = useChatSession();
 
-  const [menuOpen, setMenuOpen] = useState(true);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [searchValue, setSearchValue] = useState("");
-  const [profile, setProfile] = useState<AuthMeResponse | null>(null);
-
-  const [chats, setChats] = useState<ChatSummary[]>([]);
-  const [activeChatId, setActiveChatId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<UiMessage[]>([]);
-  const [models, setModels] = useState<ModelEntry[]>([]);
-  const [selectedModel, setSelectedModel] = useState("");
-
-  const [input, setInput] = useState("");
-  const [pendingFiles, setPendingFiles] = useState<LocalFile[]>([]);
-  const [isSending, setIsSending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-
-  const isSignedIn = Boolean(session);
-  const canCreateNewChat = messages.length > 0;
-
-  const groupedChats = useMemo(() => {
-    const groups = new Map<string, ChatSummary[]>();
-    for (const chat of chats) {
-      const key = utcDayKey(chat.createdAtUtc);
-      const arr = groups.get(key) ?? [];
-      arr.push(chat);
-      groups.set(key, arr);
-    }
-
-    return [...groups.entries()].sort((a, b) => (a[0] < b[0] ? 1 : -1));
-  }, [chats]);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setSession(loadDevSession());
-  }, []);
-
-  const loadProfile = useCallback(async () => {
-    if (!isSignedIn) {
-      setProfile(null);
-      return;
-    }
-
-    try {
-      const data = await apiFetch<AuthMeResponse>("/api/v1/auth/me", {});
-      setProfile(data);
-    } catch {
-      setProfile(null);
-    }
-  }, [isSignedIn]);
-
-  const loadModels = useCallback(async () => {
-    if (!isSignedIn) {
-      setModels([]);
-      setSelectedModel("");
-      return;
-    }
-
-    const data = await apiFetch<ModelEntry[]>("/api/v1/models", {});
-    setModels(data);
-    if (!selectedModel && data.length > 0) {
-      setSelectedModel(data[0].modelKey);
-    }
-  }, [isSignedIn, selectedModel]);
-
-  const loadChats = useCallback(
-    async (query = "") => {
-      if (!isSignedIn) {
-        setChats([]);
-        setActiveChatId(null);
-        setMessages([]);
-        return;
-      }
-
-      const suffix = query ? `?search=${encodeURIComponent(query)}` : "";
-      const data = await apiFetch<{ items: ChatSummary[] }>(`/api/v1/chats${suffix}`, {});
-      setChats(data.items);
-      if (!activeChatId && data.items.length > 0) {
-        setActiveChatId(data.items[0].id);
-      }
-    },
-    [activeChatId, isSignedIn],
-  );
-
-  const loadMessages = useCallback(
-    async (chatId: string) => {
-      if (!isSignedIn) {
-        return;
-      }
-
-      const data = await apiFetch<{ items: ChatMessage[] }>(`/api/v1/chats/${chatId}/messages`, {});
-      setMessages(toUiMessages(data.items));
-    },
-    [isSignedIn],
-  );
-
-  useEffect(() => {
-    void loadProfile();
-    void loadModels();
-    void loadChats();
-  }, [loadProfile, loadModels, loadChats]);
-
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      void loadChats(searchValue.trim());
-    }, 220);
-
-    return () => clearTimeout(timeout);
-  }, [loadChats, searchValue]);
-
-  useEffect(() => {
-    if (activeChatId) {
-      void loadMessages(activeChatId);
-    }
-  }, [activeChatId, loadMessages]);
-
-  async function createChat(): Promise<string> {
-    const data = await apiFetch<{ id: string }>("/api/v1/chats", {
-      method: "POST",
-      body: {},
-    });
-
-    await loadChats(searchValue);
-    return data.id;
-  }
-
-  async function handleNewChat() {
-    if (!canCreateNewChat || !isSignedIn) {
-      return;
-    }
-
-    const chatId = await createChat();
-    setActiveChatId(chatId);
-    setMessages([]);
-    setPendingFiles([]);
-    setInput("");
-    setError(null);
-  }
-
-  function handleFilesSelected(fileList: FileList | null) {
-    if (!fileList) {
-      return;
-    }
-
-    const nextFiles: LocalFile[] = [];
-
-    for (const file of Array.from(fileList)) {
-      if (file.size > MAX_FILE_SIZE_BYTES) {
-        setError(`${file.name} exceeds 1MB.`);
-        continue;
-      }
-
-      if (!isMimeAllowed(file)) {
-        setError(`${file.name} has an unsupported file type.`);
-        continue;
-      }
-
-      nextFiles.push({
-        localId: `${file.name}-${crypto.randomUUID()}`,
-        file,
-      });
-    }
-
-    setPendingFiles((curr) => [...curr, ...nextFiles]);
-  }
-
-  function removePendingFile(localId: string) {
-    setPendingFiles((curr) => curr.filter((f) => f.localId !== localId));
-  }
-
-  async function uploadAttachments(): Promise<string[]> {
-    const uploadedIds: string[] = [];
-
-    for (const item of pendingFiles) {
-      const presign = await apiFetch<{ attachmentId: string; uploadUrl: string }>(
-        "/api/v1/attachments/presign",
-        {
-          method: "POST",
-          body: {
-            fileName: item.file.name,
-            mimeType: item.file.type || "application/octet-stream",
-            sizeBytes: item.file.size,
-          },
-        },
-      );
-
-      const formData = new FormData();
-      formData.append("file", item.file);
-
-      const uploadResponse = await fetch(toApiUrl(presign.uploadUrl), {
-        method: "PUT",
-        headers: buildAuthHeaders(null),
-        body: formData,
-      });
-
-      if (!uploadResponse.ok) {
-        const text = await uploadResponse.text();
-        throw new Error(text || "Upload failed");
-      }
-
-      await apiFetch(`/api/v1/attachments/${presign.attachmentId}/finalize`, {
-        method: "POST",
-      });
-
-      uploadedIds.push(presign.attachmentId);
-    }
-
-    return uploadedIds;
-  }
-
-  async function sendMessage(seedText?: string) {
-    if (!isSignedIn) {
-      setError("Log in from the sidebar first.");
-      return;
-    }
-
-    const trimmedText = (seedText ?? input).trim();
-    if (!trimmedText || isSending || !selectedModel) {
-      return;
-    }
-
-    setError(null);
-    setIsSending(true);
-
-    const optimisticUserId = crypto.randomUUID();
-    const optimisticAssistantId = crypto.randomUUID();
-
-    setMessages((curr) => [
-      ...curr,
-      { id: optimisticUserId, role: "user", text: trimmedText },
-      { id: optimisticAssistantId, role: "assistant", text: "", pending: true },
-    ]);
-
-    if (!seedText) {
-      setInput("");
-    }
-
-    try {
-      const chatId = activeChatId ?? (await createChat());
-      if (!activeChatId) {
-        setActiveChatId(chatId);
-      }
-
-      const attachmentIds = await uploadAttachments();
-      setPendingFiles([]);
-
-      const response = await fetch(toApiUrl(`/api/v1/chats/${chatId}/messages/stream`), {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...buildAuthHeaders(null),
-        },
-        body: JSON.stringify({
-          modelKey: selectedModel,
-          text: trimmedText,
-          attachmentIds,
-        }),
-      });
-
-      if (!response.ok || !response.body) {
-        const text = await response.text();
-        throw new Error(text || "Failed to stream response.");
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) {
-          break;
-        }
-
-        buffer += decoder.decode(value, { stream: true });
-        const events = streamChunks(buffer);
-
-        const endsWithSeparator = buffer.endsWith("\n\n");
-        const consumableCount = endsWithSeparator ? events.length : Math.max(events.length - 1, 0);
-
-        for (let i = 0; i < consumableCount; i += 1) {
-          const event = events[i];
-          const payloadLine = event
-            .split("\n")
-            .find((line) => line.startsWith("data:"));
-
-          if (!payloadLine) {
-            continue;
-          }
-
-          const raw = payloadLine.replace("data:", "").trim();
-          if (!raw) {
-            continue;
-          }
-
-          const parsed = JSON.parse(raw) as
-            | { type: "assistant.delta"; text: string }
-            | { type: "assistant.completed" }
-            | { type: "usage.updated" }
-            | { type: "error"; message: string };
-
-          if (parsed.type === "assistant.delta") {
-            setMessages((curr) =>
-              curr.map((message) =>
-                message.id === optimisticAssistantId
-                  ? { ...message, text: `${message.text}${parsed.text}` }
-                  : message,
-              ),
-            );
-          }
-
-          if (parsed.type === "assistant.completed") {
-            setMessages((curr) =>
-              curr.map((message) =>
-                message.id === optimisticAssistantId ? { ...message, pending: false } : message,
-              ),
-            );
-            void loadChats(searchValue);
-            void loadProfile();
-          }
-
-          if (parsed.type === "error") {
-            setError(parsed.message);
-            setMessages((curr) =>
-              curr.map((message) =>
-                message.id === optimisticAssistantId
-                  ? {
-                      ...message,
-                      pending: false,
-                      text: message.text || `Error: ${parsed.message}`,
-                    }
-                  : message,
-              ),
-            );
-          }
-        }
-
-        buffer = endsWithSeparator ? "" : events[events.length - 1] ?? "";
-      }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Something went wrong.";
-      setError(message);
-      setMessages((curr) =>
-        curr.map((m) =>
-          m.id === optimisticAssistantId
-            ? { ...m, pending: false, text: m.text || `Error: ${message}` }
-            : m,
-        ),
-      );
-    } finally {
-      setIsSending(false);
-    }
-  }
-
-  function handleLogin() {
-    const base = loginEmail.trim().toLowerCase();
-    if (!base) {
-      return;
-    }
-
-    const nextSession: DevSession = {
-      email: base,
-      userId: base.replace(/[^a-z0-9]/gi, "-") || crypto.randomUUID(),
-      role: loginRole,
-    };
-
-    saveDevSession(nextSession);
-    setSession(nextSession);
-    setShowLoginForm(false);
-    setError(null);
-  }
-
-  function handleLogout() {
-    saveDevSession(null);
-    setSession(null);
-    setProfile(null);
-    setChats([]);
-    setMessages([]);
-    setModels([]);
-    setSelectedModel("");
-    setPendingFiles([]);
-    setInput("");
-    setError(null);
-  }
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   return (
-    <main className={`page-shell ${menuOpen ? "" : "menu-collapsed"}`}>
-      <aside className={`sidebar ${menuOpen ? "" : "sidebar-collapsed"}`}>
-        <div className="sidebar-top">
-          <div className="sidebar-brand">
-            <span className="brand-stripe" aria-hidden />
-            <span className="brand-wordmark">gb-ai</span>
-          </div>
+    <div className="flex h-screen overflow-hidden bg-[#F8FAFC] font-sans text-[#0B1221] selection:bg-[#00247D] selection:text-white">
+      <div className="pointer-events-none fixed inset-0 overflow-hidden">
+        <div
+          className="absolute -top-[20%] -right-[10%] h-[800px] w-[800px] animate-pulse rounded-full bg-gradient-to-br from-[#00247D]/10 to-[#C8102E]/10 opacity-60 blur-3xl"
+          style={{ animationDuration: "8s" }}
+        />
+        <div className="absolute top-[40%] -left-[10%] h-[600px] w-[600px] rounded-full bg-blue-100/40 opacity-50 blur-3xl" />
+      </div>
 
-          <div className="side-actions">
-            <button
-              type="button"
-              className="icon-button"
-              onClick={() => setMenuOpen((curr) => !curr)}
-              aria-label="Toggle sidebar"
-            >
-              {menuOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
-            </button>
+      <aside className="relative z-20 m-4 flex w-[280px] flex-col overflow-hidden rounded-[2rem] border border-white/50 bg-white/70 shadow-xl shadow-blue-900/5 backdrop-blur-xl">
+        <div className="absolute top-0 left-0 h-1 w-full bg-gradient-to-r from-[#00247D] via-[#C8102E] to-[#00247D]" />
 
-            <button
-              type="button"
-              className="side-button"
-              onClick={() => {
-                void handleNewChat();
-              }}
-              disabled={!canCreateNewChat}
-              title={!canCreateNewChat ? "Start chatting first" : "Start a new chat"}
-            >
-              <CirclePlus size={16} className="side-button-icon" />
-              <span className="side-button-label">New chat</span>
-            </button>
-
-            <button
-              type="button"
-              className="icon-button"
-              onClick={() => setSearchOpen((curr) => !curr)}
-              aria-label="Search chats"
-            >
-              <Search size={16} />
-            </button>
+        <div className="flex h-24 items-center px-8 pt-4">
+          <div className="relative h-12 w-36">
+            <Image src="/Logo-large.jpg" alt="gb-ai" fill className="object-contain object-left" />
           </div>
         </div>
 
-        {searchOpen && menuOpen ? (
-          <div className="sidebar-search">
-            <input
-              value={searchValue}
-              onChange={(e) => setSearchValue(e.target.value)}
-              placeholder="Search chats"
-              disabled={!isSignedIn}
-            />
-          </div>
-        ) : null}
+        <div className="px-6 pb-6">
+          <button
+            type="button"
+            onClick={() => {
+              void handleNewChat();
+            }}
+            className="group flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00247D] to-[#001B54] px-4 py-3 text-white shadow-lg shadow-blue-900/20 transition-all duration-300 hover:scale-[1.02] hover:shadow-blue-900/30"
+          >
+            <Plus size={18} className="transition-transform duration-300 group-hover:rotate-90" />
+            <span className="text-sm font-semibold tracking-wide">New Session</span>
+          </button>
+        </div>
 
-        <div className="chat-list">
-          {groupedChats.map(([day, dayChats]) => (
-            <div key={day} className="chat-day-group">
-              <div className="chat-day-label">{utcDayLabel(day)}</div>
-              {dayChats.map((chat) => (
-                <button
-                  key={chat.id}
-                  type="button"
-                  className={`chat-item ${activeChatId === chat.id ? "active" : ""}`}
-                  onClick={() => setActiveChatId(chat.id)}
-                >
-                  <div className="chat-item-title">{chat.preview || chat.title}</div>
-                  <div className="chat-item-meta">{new Date(chat.updatedAtUtc).toUTCString()}</div>
-                </button>
-              ))}
-            </div>
+        <div className="flex-1 space-y-1 overflow-y-auto px-4">
+          <div className="px-4 pb-2 text-[10px] font-bold tracking-widest text-slate-400 uppercase">Recent Activity</div>
+          {chats.map((chat) => (
+            <button
+              key={chat.id}
+              type="button"
+              onClick={() => setActiveChatId(chat.id)}
+              className={`flex w-full items-center rounded-xl p-3 text-left transition-all duration-200 ${
+                activeChatId === chat.id
+                  ? "border border-blue-50 bg-white text-[#00247D] shadow-md"
+                  : "text-slate-600 hover:bg-white/50 hover:text-[#00247D]"
+              }`}
+            >
+              <div className={`mr-3 h-2 w-2 rounded-full ${activeChatId === chat.id ? "bg-[#C8102E]" : "bg-slate-300"}`} />
+              <span className="truncate text-sm font-medium">{chat.title || "Untitled Chat"}</span>
+            </button>
           ))}
-
-          {!isSignedIn ? (
-            <div style={{ padding: "10px", color: "var(--ink-soft)", fontSize: "0.82rem" }}>
-              Log in to view and search your chat history.
-            </div>
-          ) : null}
         </div>
 
-        <div className="sidebar-bottom">
-          {isSignedIn && session ? (
-            <div style={{ display: "grid", gap: 8 }}>
-              <div style={{ fontSize: "0.78rem" }}>
-                {profile ? `${profile.user.email} · ${profile.plan.name}` : `${session.email} · ${session.role}`}
+        <div className="mt-auto border-t border-slate-100 p-4">
+          {session ? (
+            <div className="flex cursor-pointer items-center gap-3 rounded-xl p-2 transition-colors hover:bg-white/50">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#C8102E] to-[#E34B5C] text-xs font-bold text-white shadow-md">
+                {session.email[0]?.toUpperCase()}
               </div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <a
-                  href="/admin"
-                  className="side-button"
-                  style={{ textAlign: "center", padding: "8px", justifyContent: "center" }}
-                >
-                  <Shield size={14} className="side-button-icon" />
-                  <span className="side-button-label">Admin</span>
-                </a>
-                <button
-                  type="button"
-                  className="side-button"
-                  style={{ textAlign: "center", padding: "8px", justifyContent: "center" }}
-                  onClick={handleLogout}
-                >
-                  <LogOut size={14} className="side-button-icon" />
-                  <span className="side-button-label">Logout</span>
-                </button>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-bold text-[#0B1221]">{session.email.split("@")[0]}</div>
+                <div className="text-[10px] font-medium text-slate-500">Pro Plan Active</div>
               </div>
+              <Settings size={16} className="text-slate-400" />
             </div>
           ) : (
-            <div style={{ display: "grid", gap: 8 }}>
-              <button
-                type="button"
-                className="side-button"
-                style={{ display: "flex", alignItems: "center", gap: 8 }}
-                onClick={() => setShowLoginForm((curr) => !curr)}
-              >
-                <UserCircle2 size={16} />
-                <span className="side-button-label">Log in</span>
-                <LogIn size={14} style={{ marginLeft: "auto" }} />
-              </button>
-
-              {showLoginForm ? (
-                <div style={{ display: "grid", gap: 6 }}>
-                  <input
-                    value={loginEmail}
-                    onChange={(e) => setLoginEmail(e.target.value)}
-                    placeholder="email@example.com"
-                    style={{ border: "1px solid var(--border)", borderRadius: 10, padding: "8px" }}
-                  />
-                  <select
-                    value={loginRole}
-                    onChange={(e) => setLoginRole(e.target.value === "admin" ? "admin" : "user")}
-                    style={{ border: "1px solid var(--border)", borderRadius: 10, padding: "8px" }}
-                  >
-                    <option value="user">User</option>
-                    <option value="admin">Admin</option>
-                  </select>
-                  <button type="button" className="side-button" onClick={handleLogin}>
-                    Continue
-                  </button>
-                </div>
-              ) : null}
-            </div>
+            <button
+              type="button"
+              onClick={() => handleLogin()}
+              className="w-full py-2 text-sm font-bold text-[#00247D] hover:underline"
+            >
+              Sign In
+            </button>
           )}
         </div>
       </aside>
 
-      <section className="main-frame">
-        <div className="chat-scroll">
-          {messages.length === 0 ? (
-            <div className="empty-state">
-              <div className="empty-card">
-                <h1>gb-ai</h1>
-                <p>Pick a prompt to start, or type your own. File uploads are limited to 1MB.</p>
-                <div className="empty-grid">
-                  {EXAMPLE_PROMPTS.map((prompt) => (
-                    <button
-                      key={prompt}
-                      type="button"
-                      className="example-chip"
-                      onClick={() => {
-                        void sendMessage(prompt);
-                      }}
-                    >
-                      {prompt}
-                    </button>
-                  ))}
+      <main className="relative z-10 m-4 ml-0 flex flex-1 flex-col overflow-hidden rounded-[2rem] border border-white/60 bg-white/40 shadow-2xl shadow-slate-200/50 backdrop-blur-md">
+        <header className="flex h-20 items-center justify-between border-b border-white/50 bg-white/30 px-8 backdrop-blur-md">
+          <div className="flex items-center gap-2">
+            <span className="relative flex h-3 w-3">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
+              <span className="relative inline-flex h-3 w-3 rounded-full bg-green-500" />
+            </span>
+            <span className="text-sm font-medium text-slate-600">GB-AI Model 4.0</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-slate-500 shadow-sm transition-colors hover:text-[#00247D]"
+              aria-label="Share"
+            >
+              <Share size={16} />
+            </button>
+          </div>
+        </header>
+
+        <div className="flex-1 overflow-y-auto px-4 py-8 scroll-smooth">
+          <div className="mx-auto max-w-3xl space-y-8">
+            {messages.length === 0 ? (
+              <div className="flex min-h-[500px] flex-col items-center justify-center text-center">
+                <div className="relative mb-6 h-36 w-56">
+                  <Image src="/Logo-large.jpg" alt="gb-ai logo" fill className="object-contain drop-shadow-2xl" />
                 </div>
+                <h1 className="mb-3 text-3xl font-bold text-[#0B1221]">Good afternoon.</h1>
+                <p className="max-w-md text-lg text-slate-500">How can I help you today?</p>
               </div>
-            </div>
-          ) : (
-            <div className="message-col">
-              {messages.map((message) => (
-                <div key={message.id} className={`bubble-row ${message.role === "user" ? "user" : "assistant"}`}>
-                  <div className={`bubble ${message.role} ${message.pending ? "waiting" : ""}`}>{message.text || "..."}</div>
+            ) : (
+              messages.map((m) => (
+                <div
+                  key={m.id}
+                  className={`flex animate-in slide-in-from-bottom-2 fade-in duration-500 ${m.role === "user" ? "justify-end" : "justify-start"}`}
+                >
+                  <div
+                    className={`max-w-[85%] rounded-2xl p-6 ${
+                      m.role === "user"
+                        ? "rounded-tr-sm bg-[#00247D] text-white shadow-lg shadow-blue-900/20"
+                        : "rounded-tl-sm border border-white/80 bg-white text-[#0B1221] shadow-sm"
+                    }`}
+                  >
+                    <div className="text-[15px] leading-relaxed">{m.text}</div>
+                  </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="composer-wrap">
-          <div className="composer-box">
-            <textarea
-              placeholder="Ask anything..."
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  void sendMessage();
-                }
-              }}
-              disabled={!isSignedIn}
-            />
-
-            <div className="composer-row">
-              <div className="composer-left">
-                <select
-                  className="model-select"
-                  value={selectedModel}
-                  onChange={(e) => setSelectedModel(e.target.value)}
-                  disabled={!isSignedIn || models.length === 0}
-                >
-                  {models.map((model) => (
-                    <option key={model.modelKey} value={model.modelKey}>
-                      {model.displayName}
-                    </option>
-                  ))}
-                </select>
-
-                <button
-                  type="button"
-                  className="attach-button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={!isSignedIn}
-                >
-                  <Paperclip size={14} style={{ verticalAlign: "middle", marginRight: 6 }} />
-                  Attach
-                </button>
-
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  hidden
-                  multiple
-                  onChange={(event) => handleFilesSelected(event.target.files)}
-                />
-              </div>
-
-              <div className="composer-right">
-                <button
-                  type="button"
-                  className="send-button"
-                  disabled={!isSignedIn || isSending || !input.trim()}
-                  onClick={() => {
-                    void sendMessage();
-                  }}
-                  aria-label="Send message"
-                >
-                  <Send size={16} />
-                </button>
-              </div>
-            </div>
-
-            {pendingFiles.length > 0 ? (
-              <div className="file-row">
-                {pendingFiles.map((item) => (
-                  <span key={item.localId} className="file-chip">
-                    {item.file.name}
-                    <button type="button" onClick={() => removePendingFile(item.localId)}>
-                      <X size={12} />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            ) : null}
-
-            {error ? (
-              <p style={{ color: "var(--danger)", marginTop: 8, fontSize: "0.82rem", marginBottom: 0 }}>{error}</p>
-            ) : null}
+              ))
+            )}
+            <div ref={messagesEndRef} />
           </div>
         </div>
-      </section>
-    </main>
+
+        <div className="p-6">
+          <div className="group relative mx-auto max-w-3xl">
+            <div className="absolute -inset-0.5 rounded-[1.5rem] bg-gradient-to-r from-[#00247D] via-[#C8102E] to-[#00247D] opacity-20 blur transition duration-500 group-focus-within:opacity-40" />
+            <div className="relative flex items-end gap-3 rounded-[1.3rem] border border-white bg-white/90 p-2 shadow-xl backdrop-blur-xl">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="rounded-xl p-3 text-slate-400 transition-all hover:bg-blue-50/50 hover:text-[#00247D]"
+                aria-label="Attach files"
+              >
+                <Plus size={22} />
+              </button>
+              <input ref={fileInputRef} type="file" multiple hidden onChange={(e) => handleFilesSelected(e.target.files)} />
+
+              {pendingFiles.length > 0 ? (
+                <div className="absolute bottom-full left-0 mb-2 flex flex-wrap gap-2 px-2">
+                  {pendingFiles.map((f) => (
+                    <div
+                      key={f.localId}
+                      className="flex items-center gap-1 rounded-full border border-blue-100 bg-white/90 px-3 py-1 text-[10px] font-bold text-[#00247D] shadow-sm backdrop-blur"
+                    >
+                      <span className="max-w-48 truncate">{f.file.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => removePendingFile(f.localId)}
+                        className="rounded-full p-0.5 text-[#00247D] hover:bg-blue-100"
+                        aria-label={`Remove ${f.file.name}`}
+                      >
+                        <X size={10} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
+              <textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    void sendMessage();
+                  }
+                }}
+                placeholder="Message GB-AI..."
+                className="min-h-[52px] max-h-32 flex-1 resize-none border-none bg-transparent py-3.5 text-base text-[#0B1221] placeholder:text-slate-400 focus:ring-0"
+                rows={1}
+              />
+
+              <button
+                type="button"
+                onClick={() => {
+                  void sendMessage();
+                }}
+                disabled={!input.trim() || isSending}
+                className="flex items-center justify-center rounded-xl bg-[#00247D] p-3 text-white shadow-md transition-all active:scale-95 hover:bg-[#001B54] disabled:cursor-not-allowed disabled:opacity-50"
+                aria-label="Send message"
+              >
+                <ArrowUp size={20} strokeWidth={2.5} />
+              </button>
+            </div>
+
+            {error ? <p className="mt-2 text-center text-xs font-medium text-[#C8102E]">{error}</p> : null}
+
+            <div className="mt-3 flex items-center justify-center gap-1.5 text-center opacity-50">
+              <Zap size={10} className="fill-[#C8102E] text-[#C8102E]" />
+              <span className="text-[10px] font-semibold tracking-wide text-slate-500 uppercase">Powered by British Intelligence</span>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
   );
 }
