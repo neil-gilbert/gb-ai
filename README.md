@@ -54,6 +54,24 @@ Copy `/Users/neilgilbert/Repo/hyoka-chat/.env.example` to `.env` and set real va
 
 - `docker compose -f deploy/docker-compose.yml up --build`
 
+## Deploy web to Fasthosts (GitHub Actions)
+
+This repo includes `/Users/neilgilbert/Repo/hyoka-chat/.github/workflows/deploy-fasthosts.yml`.
+
+What it does:
+
+- Triggers on pushes to `main` (when web files change) and manual runs.
+- Builds the Next.js app as a static export (`apps/web/out`).
+- Uploads that output directory to Fasthosts via FTPS.
+
+Set these GitHub repository secrets before running it:
+
+- `FASTHOSTS_FTP_HOST` (for example `ftp.cluster0.hosting.ovh.net` or your Fasthosts FTP host)
+- `FASTHOSTS_FTP_USERNAME`
+- `FASTHOSTS_FTP_PASSWORD`
+- `FASTHOSTS_FTP_TARGET_DIR` (for example `/public_html/`)
+- `NEXT_PUBLIC_API_BASE_URL` (public URL of your API, for example `https://api.gb-ai.co.uk`)
+
 ## Quality checks
 
 - Backend tests:
