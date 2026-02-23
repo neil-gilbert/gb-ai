@@ -233,7 +233,7 @@ export default function HomePage() {
                 <div className="relative mb-6 h-36 w-56">
                   <Image src="/Logo-large.jpg" alt="gb-ai logo" fill className="object-contain drop-shadow-2xl" />
                 </div>
-                <h1 className="mb-3 text-3xl font-bold text-[#0B1221]">{greetingText}</h1>
+                <h1 className="greeting-heading mb-3 text-3xl font-bold">{greetingText}</h1>
                 <p className="max-w-md text-lg text-slate-500">How can I help you today?</p>
               </div>
             ) : (
