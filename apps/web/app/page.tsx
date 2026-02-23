@@ -1,5 +1,6 @@
 "use client";
 
+import { buildGreetingText } from "@/lib/greeting";
 import { useChatSession } from "@/lib/useChatSession";
 import { ArrowUp, Menu, Plus, Settings, Share, X, Zap } from "lucide-react";
 import Image from "next/image";
@@ -27,11 +28,26 @@ export default function HomePage() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [currentTime, setCurrentTime] = useState(() => new Date());
   const sidebarPanelId = useId();
+  const greetingText = buildGreetingText(session?.email, currentTime);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  useEffect(() => {
+    const refreshGreeting = () => {
+      setCurrentTime(new Date());
+    };
+
+    refreshGreeting();
+    const timer = window.setInterval(refreshGreeting, 60_000);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, []);
 
   useEffect(() => {
     if (!isSidebarOpen) {
@@ -193,7 +209,7 @@ export default function HomePage() {
                 <div className="relative mb-6 h-36 w-56">
                   <Image src="/Logo-large.jpg" alt="gb-ai logo" fill className="object-contain drop-shadow-2xl" />
                 </div>
-                <h1 className="mb-3 text-3xl font-bold text-[#0B1221]">Good afternoon.</h1>
+                <h1 className="greeting-heading mb-3 text-3xl font-bold">{greetingText}</h1>
                 <p className="max-w-md text-lg text-slate-500">How can I help you today?</p>
               </div>
             ) : (
