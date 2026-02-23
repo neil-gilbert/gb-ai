@@ -20,8 +20,8 @@ export function formatFirstName(email: string): string {
   return firstNameRaw.charAt(0).toUpperCase() + firstNameRaw.slice(1);
 }
 
-export function buildGreetingText(email?: string, date = new Date()): string {
-  const greeting = getTimeOfDayGreeting(date.getHours());
+export function buildGreetingText(email?: string): string {
+  const greeting = getTimeOfDayGreeting(new Date().getHours());
   const firstName = email ? formatFirstName(email) : "";
   return `Good ${greeting}${firstName ? ` ${firstName}` : ""}.`;
 }

@@ -6,6 +6,28 @@ import { ArrowUp, Menu, Plus, Settings, Share, X, Zap } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useId, useRef, useState } from "react";
 
+function getTimeOfDayGreeting(hour: number): "morning" | "afternoon" | "evening" {
+  if (hour < 12) {
+    return "morning";
+  }
+
+  if (hour < 18) {
+    return "afternoon";
+  }
+
+  return "evening";
+}
+
+function formatFirstName(email: string): string {
+  const localPart = email.split("@")[0] ?? "";
+  const [firstNameRaw = ""] = localPart.split(/[._-]/);
+  if (!firstNameRaw) {
+    return "";
+  }
+
+  return firstNameRaw.charAt(0).toUpperCase() + firstNameRaw.slice(1);
+}
+
 export default function HomePage() {
   const {
     session,
@@ -30,7 +52,9 @@ export default function HomePage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [currentTime, setCurrentTime] = useState(() => new Date());
   const sidebarPanelId = useId();
-  const greetingText = buildGreetingText(session?.email, currentTime);
+  const greeting = getTimeOfDayGreeting(new Date().getHours());
+  const firstName = session ? formatFirstName(session.email) : "";
+  const greetingText = `Good ${greeting}${firstName ? ` ${firstName}` : ""}.`;
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -80,7 +104,7 @@ export default function HomePage() {
   }, [isSidebarOpen]);
 
   return (
-    <div className="relative flex h-screen overflow-hidden bg-[#F8FAFC] font-sans text-[#0B1221] selection:bg-[#00247D] selection:text-white">
+    <div className="relative flex h-dvh min-h-dvh overflow-hidden bg-[#F8FAFC] font-sans text-[#0B1221] selection:bg-[#00247D] selection:text-white">
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
         <div
           className="absolute -top-[20%] -right-[10%] h-[800px] w-[800px] animate-pulse rounded-full bg-gradient-to-br from-[#00247D]/10 to-[#C8102E]/10 opacity-60 blur-3xl"
@@ -209,7 +233,7 @@ export default function HomePage() {
                 <div className="relative mb-6 h-36 w-56">
                   <Image src="/Logo-large.jpg" alt="gb-ai logo" fill className="object-contain drop-shadow-2xl" />
                 </div>
-                <h1 className="greeting-heading mb-3 text-3xl font-bold">{greetingText}</h1>
+                <h1 className="mb-3 text-3xl font-bold text-[#0B1221]">{greetingText}</h1>
                 <p className="max-w-md text-lg text-slate-500">How can I help you today?</p>
               </div>
             ) : (
@@ -234,7 +258,7 @@ export default function HomePage() {
           </div>
         </div>
 
-        <div className="p-6">
+        <div className="p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] md:p-6 md:pb-6">
           <div className="group relative mx-auto max-w-3xl">
             <div className="absolute -inset-0.5 rounded-[1.5rem] bg-gradient-to-r from-[#00247D] via-[#C8102E] to-[#00247D] opacity-20 blur transition duration-500 group-focus-within:opacity-40" />
             <div className="relative flex items-end gap-3 rounded-[1.3rem] border border-white bg-white/90 p-2 shadow-xl backdrop-blur-xl">

@@ -568,36 +568,27 @@ a:focus-visible {
 
 
 .greeting-heading {
-  display: inline-block;
-  background-image: linear-gradient(90deg, #c8102e 0%, #e34b5c 28%, #00247d 72%, #00247d 100%);
+  background-image: linear-gradient(90deg, #c8102e 0%, #c8102e 45%, #00247d 55%, #00247d 100%);
   background-size: 220% 100%;
   background-position: 100% 50%;
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  -webkit-text-fill-color: transparent;
-  will-change: background-position;
-  animation: greeting-wave 8s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+  animation: greeting-wave 9s ease-in-out infinite;
 }
 
 @keyframes greeting-wave {
   0%,
-  20% {
+  18% {
     background-position: 100% 50%;
   }
 
-  50%,
+  52%,
   70% {
     background-position: 0% 50%;
   }
 
   100% {
     background-position: 100% 50%;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .greeting-heading {
-    animation: none;
   }
 }
