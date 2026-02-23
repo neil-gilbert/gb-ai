@@ -50,6 +50,7 @@ export default function HomePage() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [currentTime, setCurrentTime] = useState(() => new Date());
   const sidebarPanelId = useId();
   const greeting = getTimeOfDayGreeting(new Date().getHours());
   const firstName = session ? formatFirstName(session.email) : "";
@@ -58,6 +59,19 @@ export default function HomePage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  useEffect(() => {
+    const refreshGreeting = () => {
+      setCurrentTime(new Date());
+    };
+
+    refreshGreeting();
+    const timer = window.setInterval(refreshGreeting, 60_000);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, []);
 
   useEffect(() => {
     if (!isSidebarOpen) {
