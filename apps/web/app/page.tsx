@@ -64,7 +64,7 @@ export default function HomePage() {
   }, [isSidebarOpen]);
 
   return (
-    <div className="relative flex h-screen overflow-hidden bg-[#F8FAFC] font-sans text-[#0B1221] selection:bg-[#00247D] selection:text-white">
+    <div className="relative flex h-dvh min-h-dvh overflow-hidden bg-[#F8FAFC] font-sans text-[#0B1221] selection:bg-[#00247D] selection:text-white">
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
         <div
           className="absolute -top-[20%] -right-[10%] h-[800px] w-[800px] animate-pulse rounded-full bg-gradient-to-br from-[#00247D]/10 to-[#C8102E]/10 opacity-60 blur-3xl"
@@ -218,7 +218,7 @@ export default function HomePage() {
           </div>
         </div>
 
-        <div className="p-6">
+        <div className="p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] md:p-6 md:pb-6">
           <div className="group relative mx-auto max-w-3xl">
             <div className="absolute -inset-0.5 rounded-[1.5rem] bg-gradient-to-r from-[#00247D] via-[#C8102E] to-[#00247D] opacity-20 blur transition duration-500 group-focus-within:opacity-40" />
             <div className="relative flex items-end gap-3 rounded-[1.3rem] border border-white bg-white/90 p-2 shadow-xl backdrop-blur-xl">
