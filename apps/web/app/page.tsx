@@ -1,5 +1,6 @@
 "use client";
 
+import { buildGreetingText } from "@/lib/greeting";
 import { useChatSession } from "@/lib/useChatSession";
 import { ArrowUp, Menu, Plus, Settings, Share, X, Zap } from "lucide-react";
 import Image from "next/image";
