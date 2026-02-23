@@ -571,13 +571,13 @@ a:focus-visible {
   color: #0b1221;
   background-image: linear-gradient(
     100deg,
-    #c8102e 0%,
-    #c8102e 40%,
-    #00247d 60%,
-    #00247d 100%
+    color-mix(in srgb, #c8102e 92%, white 8%) 0%,
+    #c8102e 42%,
+    #c8102e 58%,
+    color-mix(in srgb, #c8102e 85%, white 15%) 100%
   );
-  background-size: 240% 100%;
-  background-position: 100% 50%;
+  background-size: 220% 100%;
+  background-position: -140% 50%;
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -587,17 +587,63 @@ a:focus-visible {
 
 @keyframes greeting-wave {
   0%,
-  35% {
-    background-position: 100% 50%;
+  18% {
+    background-image: linear-gradient(
+      100deg,
+      color-mix(in srgb, #c8102e 92%, white 8%) 0%,
+      #c8102e 42%,
+      #c8102e 58%,
+      color-mix(in srgb, #c8102e 85%, white 15%) 100%
+    );
+    background-position: -140% 50%;
   }
 
-  55%,
-  75% {
-    background-position: 0% 50%;
+  46% {
+    background-image: linear-gradient(
+      100deg,
+      color-mix(in srgb, #c8102e 92%, white 8%) 0%,
+      #c8102e 42%,
+      #c8102e 58%,
+      color-mix(in srgb, #c8102e 85%, white 15%) 100%
+    );
+    background-position: 140% 50%;
   }
 
+  54% {
+    background-image: linear-gradient(
+      100deg,
+      color-mix(in srgb, #00247d 92%, white 8%) 0%,
+      #00247d 42%,
+      #00247d 58%,
+      color-mix(in srgb, #00247d 85%, white 15%) 100%
+    );
+    background-position: -140% 50%;
+  }
+
+  86%,
   100% {
-    background-position: 100% 50%;
+    background-image: linear-gradient(
+      100deg,
+      color-mix(in srgb, #00247d 92%, white 8%) 0%,
+      #00247d 42%,
+      #00247d 58%,
+      color-mix(in srgb, #00247d 85%, white 15%) 100%
+    );
+    background-position: 140% 50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .greeting-heading {
+    animation: none;
+    background-image: linear-gradient(
+      100deg,
+      #c8102e 0%,
+      #c8102e 48%,
+      #00247d 52%,
+      #00247d 100%
+    );
+    background-position: 50% 50%;
   }
 }
 
