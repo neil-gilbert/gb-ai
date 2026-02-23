@@ -646,3 +646,10 @@ a:focus-visible {
     background-position: 50% 50%;
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .greeting-heading {
+    animation: none;
+    background-position: 35% 50%;
+  }
+}
