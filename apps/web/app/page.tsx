@@ -5,6 +5,28 @@ import { ArrowUp, Menu, Plus, Settings, Share, X, Zap } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useId, useRef, useState } from "react";
 
+function getTimeOfDayGreeting(hour: number): "morning" | "afternoon" | "evening" {
+  if (hour < 12) {
+    return "morning";
+  }
+
+  if (hour < 18) {
+    return "afternoon";
+  }
+
+  return "evening";
+}
+
+function formatFirstName(email: string): string {
+  const localPart = email.split("@")[0] ?? "";
+  const [firstNameRaw = ""] = localPart.split(/[._-]/);
+  if (!firstNameRaw) {
+    return "";
+  }
+
+  return firstNameRaw.charAt(0).toUpperCase() + firstNameRaw.slice(1);
+}
+
 export default function HomePage() {
   const {
     session,
@@ -28,6 +50,9 @@ export default function HomePage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const sidebarPanelId = useId();
+  const greeting = getTimeOfDayGreeting(new Date().getHours());
+  const firstName = session ? formatFirstName(session.email) : "";
+  const greetingText = `Good ${greeting}${firstName ? ` ${firstName}` : ""}.`;
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -193,7 +218,7 @@ export default function HomePage() {
                 <div className="relative mb-6 h-36 w-56">
                   <Image src="/Logo-large.jpg" alt="gb-ai logo" fill className="object-contain drop-shadow-2xl" />
                 </div>
-                <h1 className="mb-3 text-3xl font-bold text-[#0B1221]">Good afternoon.</h1>
+                <h1 className="greeting-heading mb-3 text-3xl font-bold">{greetingText}</h1>
                 <p className="max-w-md text-lg text-slate-500">How can I help you today?</p>
               </div>
             ) : (
@@ -289,6 +314,33 @@ export default function HomePage() {
           </div>
         </div>
       </main>
+      <style jsx>{`
+        .greeting-heading {
+          background-image: linear-gradient(90deg, #c8102e 0%, #c8102e 45%, #00247d 55%, #00247d 100%);
+          background-size: 220% 100%;
+          background-position: 100% 50%;
+          -webkit-background-clip: text;
+          background-clip: text;
+          color: transparent;
+          animation: greeting-wave 9s ease-in-out infinite;
+        }
+
+        @keyframes greeting-wave {
+          0%,
+          18% {
+            background-position: 100% 50%;
+          }
+
+          52%,
+          70% {
+            background-position: 0% 50%;
+          }
+
+          100% {
+            background-position: 100% 50%;
+          }
+        }
+      `}</style>
     </div>
   );
 }
