@@ -314,33 +314,6 @@ export default function HomePage() {
           </div>
         </div>
       </main>
-      <style jsx>{`
-        .greeting-heading {
-          background-image: linear-gradient(90deg, #c8102e 0%, #c8102e 45%, #00247d 55%, #00247d 100%);
-          background-size: 220% 100%;
-          background-position: 100% 50%;
-          -webkit-background-clip: text;
-          background-clip: text;
-          color: transparent;
-          animation: greeting-wave 9s ease-in-out infinite;
-        }
-
-        @keyframes greeting-wave {
-          0%,
-          18% {
-            background-position: 100% 50%;
-          }
-
-          52%,
-          70% {
-            background-position: 0% 50%;
-          }
-
-          100% {
-            background-position: 100% 50%;
-          }
-        }
-      `}</style>
     </div>
   );
 }
