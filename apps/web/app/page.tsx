@@ -132,7 +132,7 @@ export default function HomePage() {
 
         <div className="flex h-24 items-center px-8 pt-4">
           <div className="relative h-12 w-36">
-            <Image src="/Logo-large.jpg" alt="gb-ai" fill className="object-contain object-left" />
+            <Image src="/LogoTransp.png" alt="gb-ai" fill className="object-contain object-left" />
           </div>
         </div>
 
@@ -231,7 +231,7 @@ export default function HomePage() {
             {messages.length === 0 ? (
               <div className="flex min-h-[500px] flex-col items-center justify-center text-center">
                 <div className="relative mb-6 h-36 w-56">
-                  <Image src="/Logo-large.jpg" alt="gb-ai logo" fill className="object-contain drop-shadow-2xl" />
+                  <Image src="/LogoTransp.png" alt="gb-ai logo" fill className="object-contain drop-shadow-2xl" />
                 </div>
                 <h1 className="greeting-heading mb-3 text-3xl font-bold">{greetingText}</h1>
                 <p className="max-w-md text-lg text-slate-500">How can I help you today?</p>
