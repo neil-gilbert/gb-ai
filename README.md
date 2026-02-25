@@ -86,6 +86,7 @@ What it does:
 
 - Triggers on pushes to `main` when backend files change and on manual runs.
 - Publishes `src/Hyoka.Api` with `dotnet publish` into `output/api-publish`.
+- Publishes Windows runtime-compatible output (`win-x64`, framework-dependent, non-single-file) for Fasthosts IIS-style deployment.
 - Generates `appsettings.Production.json` from GitHub Actions secrets.
 - Uploads the API publish output to Fasthosts via FTPS.
 

@@ -38,7 +38,13 @@ jobs:
           test -n "${{ secrets.CONNECTIONSTRINGS__MYSQL }}" || (echo "Missing CONNECTIONSTRINGS__MYSQL" && exit 1)
 
       - name: Publish API
-        run: dotnet publish src/Hyoka.Api/Hyoka.Api.csproj -c Release -o output/api-publish
+        run: >
+          dotnet publish src/Hyoka.Api/Hyoka.Api.csproj
+          -c Release
+          -r win-x64
+          --self-contained false
+          -p:PublishSingleFile=false
+          -o output/api-publish
 
       - name: Write appsettings.Production.json from secrets
         env:
@@ -129,4 +135,5 @@ jobs:
           protocol: ftps
           local-dir: output/api-publish/
           server-dir: ${{ secrets.FASTHOSTS_API_SERVER_DIR }}
+          state-name: ftp-deploy-sync-state-api.json
           dangerous-clean-slate: false

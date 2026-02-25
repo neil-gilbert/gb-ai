@@ -55,4 +55,5 @@ jobs:
           protocol: ftps
           local-dir: apps/web/out/
           server-dir: ./
+          state-name: ftp-deploy-sync-state-web.json
           dangerous-clean-slate: false
