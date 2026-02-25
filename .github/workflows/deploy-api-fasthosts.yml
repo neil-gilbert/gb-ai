@@ -130,7 +130,7 @@ jobs:
         run: |
           mkdir -p output/api-publish/logs
           if [ -f output/api-publish/web.config ]; then
-            perl -0777 -i -pe 's/stdoutLogEnabled="false"/stdoutLogEnabled="true"/g; s/stdoutLogFile="[^"]*"/stdoutLogFile=".\\logs\\stdout"/g' output/api-publish/web.config
+            perl -0777 -i -pe 's#<aspNetCore[^>]*/>#<aspNetCore processPath="dotnet" arguments=".\\Hyoka.Api.dll" stdoutLogEnabled="true" stdoutLogFile=".\\logs\\stdout" hostingModel="outofprocess" />#g' output/api-publish/web.config
           fi
 
       - name: Upload API publish output via FTPS
