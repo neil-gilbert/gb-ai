@@ -98,7 +98,25 @@ if (app.Environment.IsDevelopment())
 await using (var scope = app.Services.CreateAsyncScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<HyokaDbContext>();
-    await DbSeeder.SeedAsync(db);
+    var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("Startup");
+    var shouldSeed = !app.Environment.IsProduction() || builder.Configuration.GetValue<bool>("Database:SeedOnStartup");
+
+    if (shouldSeed)
+    {
+        try
+        {
+            await DbSeeder.SeedAsync(db);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Database seed failed during startup.");
+
+            if (!app.Environment.IsProduction())
+            {
+                throw;
+            }
+        }
+    }
 }
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok", time = DateTime.UtcNow }));
