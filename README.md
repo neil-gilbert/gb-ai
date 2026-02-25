@@ -8,7 +8,7 @@ Production-style AI chat application monorepo with a T3-inspired UI, .NET backen
 - `/Users/neilgilbert/Repo/hyoka-chat/src/Hyoka.Api` - ASP.NET Core API
 - `/Users/neilgilbert/Repo/hyoka-chat/src/Hyoka.Domain` - domain entities/enums
 - `/Users/neilgilbert/Repo/hyoka-chat/src/Hyoka.Application` - application contracts/services
-- `/Users/neilgilbert/Repo/hyoka-chat/src/Hyoka.Infrastructure` - EF Core/Postgres, storage, providers, billing
+- `/Users/neilgilbert/Repo/hyoka-chat/src/Hyoka.Infrastructure` - EF Core/MySQL, storage, providers, billing
 - `/Users/neilgilbert/Repo/hyoka-chat/tests` - unit and integration tests
 - `/Users/neilgilbert/Repo/hyoka-chat/deploy/docker-compose.yml` - local orchestration
 
@@ -42,7 +42,7 @@ Copy `/Users/neilgilbert/Repo/hyoka-chat/.env.example` to `.env` and set real va
 ## Run locally (without Docker)
 
 1. Start infra services:
-   - `docker compose -f deploy/docker-compose.yml up -d postgres minio`
+   - `docker compose -f deploy/docker-compose.yml up -d mysql minio`
 2. Start API:
    - `dotnet run --project src/Hyoka.Api`
 3. Start web:
@@ -77,6 +77,45 @@ Fasthosts directory notes used by this workflow:
 - `cgi-bin` is reserved for executable CGI content; do not deploy site HTML/JS there.
 - `logfiles` is for logs only; do not upload application files there.
 - For ASP.NET/.NET private runtime data, create a sibling `private` folder (outside `htdocs`) and keep secrets/non-public files there.
+
+## Deploy API to Fasthosts (GitHub Actions)
+
+This repo includes `/Users/neilgilbert/Repo/hyoka-chat/.github/workflows/deploy-api-fasthosts.yml`.
+
+What it does:
+
+- Triggers on pushes to `main` when backend files change and on manual runs.
+- Publishes `src/Hyoka.Api` with `dotnet publish` into `output/api-publish`.
+- Generates `appsettings.Production.json` from GitHub Actions secrets.
+- Uploads the API publish output to Fasthosts via FTPS.
+
+Set these GitHub repository secrets before running it:
+
+- `FASTHOSTS_FTP_HOST`
+- `FASTHOSTS_FTP_USERNAME`
+- `FASTHOSTS_FTP_PASSWORD`
+- `FASTHOSTS_API_SERVER_DIR` (deployment target directory on server; prefer a non-public location when your hosting setup supports it)
+- `PROVIDERS__OPENAI__API_KEY`
+- `CONNECTIONSTRINGS__MYSQL`
+
+Optional secrets used by the workflow when provided:
+
+- `CLERK__ISSUER`
+- `CLERK__AUDIENCE`
+- `STORAGE__SERVICEURL`
+- `STORAGE__ACCESSKEY`
+- `STORAGE__SECRETKEY`
+- `STORAGE__BUCKET`
+- `STORAGE__USEPATHSTYLE`
+- `PROVIDERS__OPENAI__BASEURL`
+- `PROVIDERS__ANTHROPIC__API_KEY`
+- `PROVIDERS__ANTHROPIC__BASEURL`
+- `PROVIDERS__OPENROUTER__API_KEY`
+- `PROVIDERS__OPENROUTER__BASEURL`
+- `STRIPE__SECRETKEY`
+- `STRIPE__WEBHOOKSECRET`
+- `STRIPE__SUCCESSURL`
+- `STRIPE__CANCELURL`
 
 ## Quality checks
 

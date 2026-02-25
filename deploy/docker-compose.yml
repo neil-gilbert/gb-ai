@@ -1,17 +1,18 @@
 version: "3.9"
 
 services:
-  postgres:
-    image: postgres:16
+  mysql:
+    image: mysql:8.4
     restart: unless-stopped
     environment:
-      POSTGRES_DB: hyoka
-      POSTGRES_USER: hyoka
-      POSTGRES_PASSWORD: hyoka
+      MYSQL_DATABASE: hyoka
+      MYSQL_USER: hyoka
+      MYSQL_PASSWORD: hyoka123
+      MYSQL_ROOT_PASSWORD: root123
     ports:
-      - "5432:5432"
+      - "3306:3306"
     volumes:
-      - ../.pgdata:/var/lib/postgresql/data
+      - ../.mysqldata:/var/lib/mysql
 
   minio:
     image: minio/minio:latest
@@ -31,11 +32,12 @@ services:
       context: ..
       dockerfile: src/Hyoka.Api/Dockerfile
     depends_on:
-      - postgres
+      - mysql
       - minio
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__Postgres: Host=postgres;Port=5432;Database=hyoka;Username=hyoka;Password=hyoka
+      Database__Provider: MySql
+      ConnectionStrings__MySql: Server=mysql;Port=3306;Database=hyoka;User=hyoka;Password=hyoka123;SslMode=None;AllowPublicKeyRetrieval=True
       Storage__ServiceUrl: http://minio:9000
       Storage__AccessKey: minio
       Storage__SecretKey: minio123

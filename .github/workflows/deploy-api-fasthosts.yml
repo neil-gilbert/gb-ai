@@ -1,0 +1,132 @@
+name: Deploy API To Fasthosts
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "src/**"
+      - "HyokaChat.sln"
+      - ".github/workflows/deploy-api-fasthosts.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-api-fasthosts-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Publish And Upload API
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Validate required secrets
+        run: |
+          test -n "${{ secrets.FASTHOSTS_FTP_HOST }}" || (echo "Missing FASTHOSTS_FTP_HOST" && exit 1)
+          test -n "${{ secrets.FASTHOSTS_FTP_USERNAME }}" || (echo "Missing FASTHOSTS_FTP_USERNAME" && exit 1)
+          test -n "${{ secrets.FASTHOSTS_FTP_PASSWORD }}" || (echo "Missing FASTHOSTS_FTP_PASSWORD" && exit 1)
+          test -n "${{ secrets.FASTHOSTS_API_SERVER_DIR }}" || (echo "Missing FASTHOSTS_API_SERVER_DIR" && exit 1)
+          test -n "${{ secrets.PROVIDERS__OPENAI__API_KEY }}" || (echo "Missing PROVIDERS__OPENAI__API_KEY" && exit 1)
+          test -n "${{ secrets.CONNECTIONSTRINGS__MYSQL }}" || (echo "Missing CONNECTIONSTRINGS__MYSQL" && exit 1)
+
+      - name: Publish API
+        run: dotnet publish src/Hyoka.Api/Hyoka.Api.csproj -c Release -o output/api-publish
+
+      - name: Write appsettings.Production.json from secrets
+        env:
+          CONNECTIONSTRINGS__MYSQL: ${{ secrets.CONNECTIONSTRINGS__MYSQL }}
+          CLERK__ISSUER: ${{ secrets.CLERK__ISSUER }}
+          CLERK__AUDIENCE: ${{ secrets.CLERK__AUDIENCE }}
+          STORAGE__SERVICEURL: ${{ secrets.STORAGE__SERVICEURL }}
+          STORAGE__ACCESSKEY: ${{ secrets.STORAGE__ACCESSKEY }}
+          STORAGE__SECRETKEY: ${{ secrets.STORAGE__SECRETKEY }}
+          STORAGE__BUCKET: ${{ secrets.STORAGE__BUCKET }}
+          STORAGE__USEPATHSTYLE: ${{ secrets.STORAGE__USEPATHSTYLE }}
+          PROVIDERS__OPENAI__API_KEY: ${{ secrets.PROVIDERS__OPENAI__API_KEY }}
+          PROVIDERS__OPENAI__BASEURL: ${{ secrets.PROVIDERS__OPENAI__BASEURL }}
+          PROVIDERS__ANTHROPIC__API_KEY: ${{ secrets.PROVIDERS__ANTHROPIC__API_KEY }}
+          PROVIDERS__ANTHROPIC__BASEURL: ${{ secrets.PROVIDERS__ANTHROPIC__BASEURL }}
+          PROVIDERS__OPENROUTER__API_KEY: ${{ secrets.PROVIDERS__OPENROUTER__API_KEY }}
+          PROVIDERS__OPENROUTER__BASEURL: ${{ secrets.PROVIDERS__OPENROUTER__BASEURL }}
+          STRIPE__SECRETKEY: ${{ secrets.STRIPE__SECRETKEY }}
+          STRIPE__WEBHOOKSECRET: ${{ secrets.STRIPE__WEBHOOKSECRET }}
+          STRIPE__SUCCESSURL: ${{ secrets.STRIPE__SUCCESSURL }}
+          STRIPE__CANCELURL: ${{ secrets.STRIPE__CANCELURL }}
+        run: |
+          jq -n \
+            --arg mySql "$CONNECTIONSTRINGS__MYSQL" \
+            --arg clerkIssuer "$CLERK__ISSUER" \
+            --arg clerkAudience "$CLERK__AUDIENCE" \
+            --arg storageServiceUrl "${STORAGE__SERVICEURL:-}" \
+            --arg storageAccessKey "${STORAGE__ACCESSKEY:-}" \
+            --arg storageSecretKey "${STORAGE__SECRETKEY:-}" \
+            --arg storageBucket "${STORAGE__BUCKET:-}" \
+            --arg storageUsePathStyle "${STORAGE__USEPATHSTYLE:-true}" \
+            --arg openAiApiKey "$PROVIDERS__OPENAI__API_KEY" \
+            --arg openAiBaseUrl "${PROVIDERS__OPENAI__BASEURL:-https://api.openai.com}" \
+            --arg anthropicApiKey "${PROVIDERS__ANTHROPIC__API_KEY:-}" \
+            --arg anthropicBaseUrl "${PROVIDERS__ANTHROPIC__BASEURL:-https://api.anthropic.com}" \
+            --arg openRouterApiKey "${PROVIDERS__OPENROUTER__API_KEY:-}" \
+            --arg openRouterBaseUrl "${PROVIDERS__OPENROUTER__BASEURL:-https://openrouter.ai/api}" \
+            --arg stripeSecretKey "${STRIPE__SECRETKEY:-}" \
+            --arg stripeWebhookSecret "${STRIPE__WEBHOOKSECRET:-}" \
+            --arg stripeSuccessUrl "${STRIPE__SUCCESSURL:-}" \
+            --arg stripeCancelUrl "${STRIPE__CANCELURL:-}" \
+            '{
+              ConnectionStrings: {
+                MySql: $mySql
+              },
+              Clerk: {
+                Issuer: $clerkIssuer,
+                Audience: $clerkAudience
+              },
+              Storage: {
+                ServiceUrl: $storageServiceUrl,
+                AccessKey: $storageAccessKey,
+                SecretKey: $storageSecretKey,
+                Bucket: $storageBucket,
+                UsePathStyle: ($storageUsePathStyle | ascii_downcase) == "true"
+              },
+              Providers: {
+                OpenAI: {
+                  BaseUrl: $openAiBaseUrl,
+                  ApiKey: $openAiApiKey,
+                  TimeoutSeconds: 120
+                },
+                Anthropic: {
+                  BaseUrl: $anthropicBaseUrl,
+                  ApiKey: $anthropicApiKey,
+                  TimeoutSeconds: 120
+                },
+                OpenRouter: {
+                  BaseUrl: $openRouterBaseUrl,
+                  ApiKey: $openRouterApiKey,
+                  TimeoutSeconds: 120
+                }
+              },
+              Stripe: {
+                SecretKey: $stripeSecretKey,
+                WebhookSecret: $stripeWebhookSecret,
+                SuccessUrl: $stripeSuccessUrl,
+                CancelUrl: $stripeCancelUrl
+              }
+            }' > output/api-publish/appsettings.Production.json
+
+      - name: Upload API publish output via FTPS
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.6
+        with:
+          server: ${{ secrets.FASTHOSTS_FTP_HOST }}
+          username: ${{ secrets.FASTHOSTS_FTP_USERNAME }}
+          password: ${{ secrets.FASTHOSTS_FTP_PASSWORD }}
+          protocol: ftps
+          local-dir: output/api-publish/
+          server-dir: ${{ secrets.FASTHOSTS_API_SERVER_DIR }}
+          dangerous-clean-slate: false

@@ -27,8 +27,23 @@ public static class ServiceCollectionExtensions
         }
         else
         {
+            if (!string.IsNullOrWhiteSpace(dbProvider)
+                && !string.Equals(dbProvider, "MySql", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException($"Unsupported database provider '{dbProvider}'. Expected 'MySql' or 'InMemory'.");
+            }
+
+            var connectionString = configuration.GetConnectionString("MySql");
+            if (string.IsNullOrWhiteSpace(connectionString))
+            {
+                throw new InvalidOperationException("Connection string 'MySql' is not configured.");
+            }
+
             services.AddDbContext<HyokaDbContext>(opt =>
-                opt.UseNpgsql(configuration.GetConnectionString("Postgres")));
+                opt.UseMySql(
+                    connectionString,
+                    ServerVersion.AutoDetect(connectionString),
+                    mysql => mysql.EnableRetryOnFailure()));
         }
 
         services.AddHttpClient();
