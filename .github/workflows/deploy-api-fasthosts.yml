@@ -99,7 +99,7 @@ jobs:
                 AccessKey: $storageAccessKey,
                 SecretKey: $storageSecretKey,
                 Bucket: $storageBucket,
-                UsePathStyle: ($storageUsePathStyle | ascii_downcase) == "true"
+                UsePathStyle: (($storageUsePathStyle | ascii_downcase) == "true")
               },
               Providers: {
                 OpenAI: {
