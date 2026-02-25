@@ -39,10 +39,13 @@ public static class ServiceCollectionExtensions
                 throw new InvalidOperationException("Connection string 'MySql' is not configured.");
             }
 
+            var mySqlServerVersion = configuration["Database:MySqlServerVersion"] ?? "8.0.36-mysql";
+            var serverVersion = ServerVersion.Parse(mySqlServerVersion);
+
             services.AddDbContext<HyokaDbContext>(opt =>
                 opt.UseMySql(
                     connectionString,
-                    ServerVersion.AutoDetect(connectionString),
+                    serverVersion,
                     mysql => mysql.EnableRetryOnFailure()));
         }
 
