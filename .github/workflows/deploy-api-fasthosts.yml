@@ -128,10 +128,25 @@ jobs:
 
       - name: Enable ASP.NET Core stdout logs for startup diagnostics
         run: |
-          mkdir -p output/api-publish/logs
-          if [ -f output/api-publish/web.config ]; then
-            perl -0777 -i -pe 's#<aspNetCore[^>]*/>#<aspNetCore processPath=".\\Hyoka.Api.exe" stdoutLogEnabled="true" stdoutLogFile=".\\stdout" hostingModel="outofprocess" />#g' output/api-publish/web.config
-          fi
+          cat > output/api-publish/web.config <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <configuration>
+            <location path="." inheritInChildApplications="false">
+              <system.webServer>
+                <handlers>
+                  <add name="aspNetCore" path="*" verb="*" modules="AspNetCoreModuleV2" resourceType="Unspecified" />
+                </handlers>
+                <httpErrors errorMode="Detailed" existingResponse="PassThrough" />
+                <aspNetCore processPath=".\Hyoka.Api.exe" stdoutLogEnabled="true" stdoutLogFile=".\stdout" hostingModel="outofprocess">
+                  <environmentVariables>
+                    <environmentVariable name="ASPNETCORE_ENVIRONMENT" value="Development" />
+                    <environmentVariable name="ASPNETCORE_DETAILEDERRORS" value="true" />
+                  </environmentVariables>
+                </aspNetCore>
+              </system.webServer>
+            </location>
+          </configuration>
+          EOF
 
       - name: Upload API publish output via FTPS
         uses: SamKirkland/FTP-Deploy-Action@v4.3.6
