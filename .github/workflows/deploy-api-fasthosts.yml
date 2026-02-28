@@ -179,6 +179,37 @@ jobs:
           </configuration>
           EOF
 
+      - name: Create app_offline.htm
+        run: |
+          cat > output/api-publish/app_offline.htm <<'EOF'
+          <!doctype html>
+          <html lang="en">
+          <head><meta charset="utf-8"><title>Temporarily offline</title></head>
+          <body><h1>Site update in progress</h1><p>Please retry in a minute.</p></body>
+          </html>
+          EOF
+
+      - name: Install lftp
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y lftp
+
+      - name: Upload app_offline.htm first
+        env:
+          FASTHOSTS_FTP_HOST: ${{ secrets.FASTHOSTS_FTP_HOST }}
+          FASTHOSTS_FTP_USERNAME: ${{ secrets.FASTHOSTS_FTP_USERNAME }}
+          FASTHOSTS_FTP_PASSWORD: ${{ secrets.FASTHOSTS_FTP_PASSWORD }}
+        run: |
+          lftp -e "
+            set ftp:ssl-force true;
+            set ftp:ssl-protect-data true;
+            set ssl:verify-certificate no;
+            open -u \"$FASTHOSTS_FTP_USERNAME\",\"$FASTHOSTS_FTP_PASSWORD\" \"ftps://$FASTHOSTS_FTP_HOST\";
+            put -O ./ output/api-publish/app_offline.htm;
+            bye
+          "
+          sleep 5
+
       - name: Upload bundled app via FTPS
         uses: SamKirkland/FTP-Deploy-Action@v4.3.6
         with:
@@ -190,3 +221,20 @@ jobs:
           server-dir: ./
           state-name: ftp-deploy-sync-state-app.json
           dangerous-clean-slate: false
+
+      - name: Remove app_offline.htm
+        if: always()
+        env:
+          FASTHOSTS_FTP_HOST: ${{ secrets.FASTHOSTS_FTP_HOST }}
+          FASTHOSTS_FTP_USERNAME: ${{ secrets.FASTHOSTS_FTP_USERNAME }}
+          FASTHOSTS_FTP_PASSWORD: ${{ secrets.FASTHOSTS_FTP_PASSWORD }}
+        run: |
+          lftp -e "
+            set ftp:ssl-force true;
+            set ftp:ssl-protect-data true;
+            set ssl:verify-certificate no;
+            set cmd:fail-exit no;
+            open -u \"$FASTHOSTS_FTP_USERNAME\",\"$FASTHOSTS_FTP_PASSWORD\" \"ftps://$FASTHOSTS_FTP_HOST\";
+            rm ./app_offline.htm;
+            bye
+          "
