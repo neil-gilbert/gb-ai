@@ -54,10 +54,10 @@ public static class DbSeeder
             db.ModelCatalog.AddRange(
                 new ModelCatalogEntry
                 {
-                    ModelKey = "chatgpt-5.3",
-                    DisplayName = "ChatGPT 5.3",
+                    ModelKey = "gpt-4o-mini",
+                    DisplayName = "GPT-4o mini",
                     Provider = ProviderKind.OpenAi,
-                    ProviderModelId = "gpt-5.3",
+                    ProviderModelId = "gpt-4o-mini",
                     InputWeight = 1.0m,
                     OutputWeight = 2.0m,
                     PlanAccessCsv = "Free,Light,Pro"
@@ -83,6 +83,40 @@ public static class DbSeeder
                     PlanAccessCsv = "Pro"
                 }
             );
+        }
+        else
+        {
+            var legacyOpenAi = await db.ModelCatalog
+                .FirstOrDefaultAsync(x => x.ModelKey == "chatgpt-5.3", ct);
+
+            if (legacyOpenAi is not null)
+            {
+                legacyOpenAi.DisplayName = "GPT-4o mini";
+                legacyOpenAi.Provider = ProviderKind.OpenAi;
+                legacyOpenAi.ProviderModelId = "gpt-4o-mini";
+                legacyOpenAi.InputWeight = 1.0m;
+                legacyOpenAi.OutputWeight = 2.0m;
+                legacyOpenAi.PlanAccessCsv = "Free,Light,Pro";
+                legacyOpenAi.Enabled = true;
+            }
+
+            var hasGpt4oMini = await db.ModelCatalog
+                .AnyAsync(x => x.ModelKey == "gpt-4o-mini", ct);
+
+            if (!hasGpt4oMini)
+            {
+                db.ModelCatalog.Add(new ModelCatalogEntry
+                {
+                    ModelKey = "gpt-4o-mini",
+                    DisplayName = "GPT-4o mini",
+                    Provider = ProviderKind.OpenAi,
+                    ProviderModelId = "gpt-4o-mini",
+                    InputWeight = 1.0m,
+                    OutputWeight = 2.0m,
+                    PlanAccessCsv = "Free,Light,Pro",
+                    Enabled = true
+                });
+            }
         }
 
         await db.SaveChangesAsync(ct);
