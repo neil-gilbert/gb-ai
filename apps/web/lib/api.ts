@@ -1,4 +1,6 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
+const API_BASE_URL = (
+  process.env.NEXT_PUBLIC_API_BASE_URL ?? (process.env.NODE_ENV === "development" ? "http://localhost:8080" : "")
+).trim();
 
 export type FetchOptions = {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
@@ -10,6 +12,10 @@ export type FetchOptions = {
 export function toApiUrl(path: string): string {
   if (path.startsWith("http://") || path.startsWith("https://")) {
     return path;
+  }
+
+  if (!API_BASE_URL) {
+    return path.startsWith("/") ? path : `/${path}`;
   }
 
   if (path.startsWith("/")) {

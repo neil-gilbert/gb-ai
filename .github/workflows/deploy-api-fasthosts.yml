@@ -1,27 +1,37 @@
-name: Deploy API To Fasthosts
+name: Deploy App To Fasthosts
 
 on:
   push:
     branches:
       - main
     paths:
+      - "apps/web/**"
+      - "package.json"
+      - "package-lock.json"
       - "src/**"
       - "HyokaChat.sln"
       - ".github/workflows/deploy-api-fasthosts.yml"
   workflow_dispatch:
 
 concurrency:
-  group: deploy-api-fasthosts-${{ github.ref }}
+  group: deploy-app-fasthosts-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   deploy:
-    name: Publish And Upload API
+    name: Build And Upload Bundled App
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: package-lock.json
 
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v4
@@ -33,9 +43,16 @@ jobs:
           test -n "${{ secrets.FASTHOSTS_FTP_HOST }}" || (echo "Missing FASTHOSTS_FTP_HOST" && exit 1)
           test -n "${{ secrets.FASTHOSTS_FTP_USERNAME }}" || (echo "Missing FASTHOSTS_FTP_USERNAME" && exit 1)
           test -n "${{ secrets.FASTHOSTS_FTP_PASSWORD }}" || (echo "Missing FASTHOSTS_FTP_PASSWORD" && exit 1)
-          test -n "${{ secrets.FASTHOSTS_API_SERVER_DIR }}" || (echo "Missing FASTHOSTS_API_SERVER_DIR" && exit 1)
           test -n "${{ secrets.PROVIDERS__OPENAI__API_KEY }}" || (echo "Missing PROVIDERS__OPENAI__API_KEY" && exit 1)
           test -n "${{ secrets.CONNECTIONSTRINGS__MYSQL }}" || (echo "Missing CONNECTIONSTRINGS__MYSQL" && exit 1)
+
+      - name: Install web dependencies
+        run: npm ci
+
+      - name: Build static web export
+        run: npm run build:web
+        env:
+          NEXT_PUBLIC_API_BASE_URL: ${{ secrets.NEXT_PUBLIC_API_BASE_URL }}
 
       - name: Publish API
         run: >
@@ -45,6 +62,11 @@ jobs:
           --self-contained false
           -p:PublishSingleFile=false
           -o output/api-publish
+
+      - name: Bundle frontend assets into API wwwroot
+        run: |
+          mkdir -p output/api-publish/wwwroot
+          cp -R apps/web/out/. output/api-publish/wwwroot/
 
       - name: Write appsettings.Production.json from secrets
         env:
@@ -147,7 +169,7 @@ jobs:
           </configuration>
           EOF
 
-      - name: Upload API publish output via FTPS
+      - name: Upload bundled app via FTPS
         uses: SamKirkland/FTP-Deploy-Action@v4.3.6
         with:
           server: ${{ secrets.FASTHOSTS_FTP_HOST }}
@@ -155,6 +177,6 @@ jobs:
           password: ${{ secrets.FASTHOSTS_FTP_PASSWORD }}
           protocol: ftps
           local-dir: output/api-publish/
-          server-dir: ${{ secrets.FASTHOSTS_API_SERVER_DIR }}
-          state-name: ftp-deploy-sync-state-api.json
+          server-dir: ./
+          state-name: ftp-deploy-sync-state-app.json
           dangerous-clean-slate: false

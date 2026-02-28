@@ -88,6 +88,8 @@ app.UseCors();
 app.UseAuthentication();
 app.UseMiddleware<UserProvisioningMiddleware>();
 app.UseAuthorization();
+app.UseDefaultFiles();
+app.UseStaticFiles();
 
 if (app.Environment.IsDevelopment())
 {
@@ -120,6 +122,7 @@ await using (var scope = app.Services.CreateAsyncScope())
 }
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok", time = DateTime.UtcNow }));
+app.MapGet("/api/v1/health", () => Results.Ok(new { status = "ok", time = DateTime.UtcNow }));
 
 var api = app.MapGroup("/api/v1").RequireAuthorization();
 
@@ -852,6 +855,22 @@ admin.MapGet("/usage", async (HyokaDbContext db, CancellationToken ct) =>
         topModels
     });
 });
+
+var frontendIndex = Path.Combine(app.Environment.WebRootPath ?? string.Empty, "index.html");
+if (File.Exists(frontendIndex))
+{
+    app.MapFallback(async context =>
+    {
+        if (context.Request.Path.StartsWithSegments("/api", StringComparison.OrdinalIgnoreCase))
+        {
+            context.Response.StatusCode = StatusCodes.Status404NotFound;
+            return;
+        }
+
+        context.Response.ContentType = "text/html; charset=utf-8";
+        await context.Response.SendFileAsync(frontendIndex);
+    }).AllowAnonymous();
+}
 
 app.Run();
 

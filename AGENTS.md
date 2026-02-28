@@ -1,5 +1,10 @@
 # Agent Instructions
 
+## Project Identity
+- Production domain: `https://gb-ai.co.uk/`
+- Web app public URL: `https://gb-ai.co.uk/`
+- API base URL should use the same domain and host the `/api/v1/*` routes.
+
 ## Fasthosts Deployment (Web + API)
 
 Use these rules when deploying this repository to Fasthosts.
@@ -16,17 +21,29 @@ Use these rules when deploying this repository to Fasthosts.
 - For this app specifically, `Providers__OpenAI__ApiKey` must never be exposed in frontend code or `NEXT_PUBLIC_*` variables.
 
 ### Hyoka chat project mapping
-- Frontend static export (`apps/web/out`) deploys to `htdocs`.
-- Backend (`src/Hyoka.Api`) should run as server-side ASP.NET hosting; do not treat it as static content.
+- Primary deployment is a bundled app: frontend export is copied into API `wwwroot` and served by ASP.NET from the same process/site.
+- Backend (`src/Hyoka.Api`) runs as server-side ASP.NET hosting on `.NET 8`.
 - Fasthosts runtime constraint for this project: keep backend target/runtime on `.NET 8` (`net8.0`) unless hosting support changes.
 - Use MySQL (`ConnectionStrings:MySql`) for database configuration on this hosting setup.
 - If Fasthosts plan supports ASP.NET app hosting, deploy API runtime/published output per host ASP.NET guidance and keep config secrets in non-public storage.
 - If the plan does not support long-running ASP.NET Core API hosting, keep frontend on Fasthosts and host the API elsewhere (VPS/container platform), then point `NEXT_PUBLIC_API_BASE_URL` to that API URL.
 
+### Deployment workflows
+- Primary bundled deployment workflow: `.github/workflows/deploy-api-fasthosts.yml`
+- Legacy static-only web workflow (manual fallback): `.github/workflows/deploy-fasthosts.yml`
+- Bundled workflow publishes Windows-compatible .NET output for Fasthosts IIS-style hosting (`win-x64`, framework-dependent, non-single-file) and includes frontend static assets in `wwwroot`.
+
 ### Default document behavior
 - Ensure the site has a valid default document in `htdocs` so root URL requests resolve successfully.
 - If multiple default documents exist, server precedence determines which is served.
 
-### Existing workflow note
-- `.github/workflows/deploy-fasthosts.yml` currently deploys only the frontend static site via FTPS.
-- It does not deploy the ASP.NET API runtime.
+### Required API deploy secrets (GitHub Actions)
+- `FASTHOSTS_FTP_HOST`
+- `FASTHOSTS_FTP_USERNAME`
+- `FASTHOSTS_FTP_PASSWORD`
+- `PROVIDERS__OPENAI__API_KEY`
+- `CONNECTIONSTRINGS__MYSQL`
+
+### Quick production checks
+- Health endpoint should respond: `https://gb-ai.co.uk/api/v1/health`
+- Models endpoint requires auth and should return available models: `https://gb-ai.co.uk/api/v1/models`

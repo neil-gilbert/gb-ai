@@ -54,50 +54,30 @@ Copy `/Users/neilgilbert/Repo/hyoka-chat/.env.example` to `.env` and set real va
 
 - `docker compose -f deploy/docker-compose.yml up --build`
 
-## Deploy web to Fasthosts (GitHub Actions)
+## Deploy bundled app to Fasthosts (GitHub Actions)
 
-This repo includes `/Users/neilgilbert/Repo/hyoka-chat/.github/workflows/deploy-fasthosts.yml`.
+This repo uses `/Users/neilgilbert/Repo/hyoka-chat/.github/workflows/deploy-api-fasthosts.yml` as the primary deployment workflow.
 
 What it does:
 
-- Triggers on pushes to `main` (when web files change) and manual runs.
-- Builds the Next.js app as a static export (`apps/web/out`).
-- Uploads that output directory to Fasthosts via FTPS.
+- Triggers on pushes to `main` when web or backend files change, and on manual runs.
+- Builds the Next.js static export (`apps/web/out`).
+- Publishes `src/Hyoka.Api` with `dotnet publish` into `output/api-publish` (`net8.0`, `win-x64`, framework-dependent, non-single-file).
+- Copies the web export into `output/api-publish/wwwroot` so ASP.NET serves both frontend pages and `/api/v1/*`.
+- Generates `appsettings.Production.json` from GitHub Actions secrets.
+- Uploads the bundled output to Fasthosts via FTPS (`server-dir: ./`).
 
 Set these GitHub repository secrets before running it:
 
 - `FASTHOSTS_FTP_HOST` (for example `ftp.cluster0.hosting.ovh.net` or your Fasthosts FTP host)
 - `FASTHOSTS_FTP_USERNAME`
 - `FASTHOSTS_FTP_PASSWORD`
-- `NEXT_PUBLIC_API_BASE_URL` (public URL of your API, for example `https://api.gb-ai.co.uk`)
-
-Fasthosts directory notes used by this workflow:
-
-- FTP login lands in `htdocs`; workflow uploads there by default (`server-dir: ./`).
-- `cgi-bin` is reserved for executable CGI content; do not deploy site HTML/JS there.
-- `logfiles` is for logs only; do not upload application files there.
-- For ASP.NET/.NET private runtime data, create a sibling `private` folder (outside `htdocs`) and keep secrets/non-public files there.
-
-## Deploy API to Fasthosts (GitHub Actions)
-
-This repo includes `/Users/neilgilbert/Repo/hyoka-chat/.github/workflows/deploy-api-fasthosts.yml`.
-
-What it does:
-
-- Triggers on pushes to `main` when backend files change and on manual runs.
-- Publishes `src/Hyoka.Api` with `dotnet publish` into `output/api-publish`.
-- Publishes Windows runtime-compatible output (`win-x64`, framework-dependent, non-single-file) for Fasthosts IIS-style deployment.
-- Generates `appsettings.Production.json` from GitHub Actions secrets.
-- Uploads the API publish output to Fasthosts via FTPS.
-
-Set these GitHub repository secrets before running it:
-
-- `FASTHOSTS_FTP_HOST`
-- `FASTHOSTS_FTP_USERNAME`
-- `FASTHOSTS_FTP_PASSWORD`
-- `FASTHOSTS_API_SERVER_DIR` (deployment target directory on server; prefer a non-public location when your hosting setup supports it)
 - `PROVIDERS__OPENAI__API_KEY`
 - `CONNECTIONSTRINGS__MYSQL`
+
+Optional secret:
+
+- `NEXT_PUBLIC_API_BASE_URL` (leave empty for same-origin `/api` calls, or set explicitly when needed)
 
 Optional secrets used by the workflow when provided:
 
@@ -117,6 +97,17 @@ Optional secrets used by the workflow when provided:
 - `STRIPE__WEBHOOKSECRET`
 - `STRIPE__SUCCESSURL`
 - `STRIPE__CANCELURL`
+
+Fasthosts directory notes used by this workflow:
+
+- FTP login lands in `htdocs`; workflow uploads there by default (`server-dir: ./`).
+- `cgi-bin` is reserved for executable CGI content; do not deploy site HTML/JS there.
+- `logfiles` is for logs only; do not upload application files there.
+- For ASP.NET/.NET private runtime data, create a sibling `private` folder (outside `htdocs`) and keep secrets/non-public files there.
+
+## Legacy web-only workflow
+
+`/Users/neilgilbert/Repo/hyoka-chat/.github/workflows/deploy-fasthosts.yml` is now manual-only and kept for emergency static-only rollbacks.
 
 ## Quality checks
 

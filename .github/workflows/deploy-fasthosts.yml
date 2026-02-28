@@ -1,14 +1,6 @@
-name: Deploy Web To Fasthosts
+name: Deploy Web Static (Legacy)
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - "apps/web/**"
-      - "package.json"
-      - "package-lock.json"
-      - ".github/workflows/deploy-fasthosts.yml"
   workflow_dispatch:
 
 concurrency:
