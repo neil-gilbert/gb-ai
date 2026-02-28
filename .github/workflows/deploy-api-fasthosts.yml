@@ -200,14 +200,15 @@ jobs:
           FASTHOSTS_FTP_USERNAME: ${{ secrets.FASTHOSTS_FTP_USERNAME }}
           FASTHOSTS_FTP_PASSWORD: ${{ secrets.FASTHOSTS_FTP_PASSWORD }}
         run: |
-          lftp -e "
-            set ftp:ssl-force true;
-            set ftp:ssl-protect-data true;
-            set ssl:verify-certificate no;
-            open -u \"$FASTHOSTS_FTP_USERNAME\",\"$FASTHOSTS_FTP_PASSWORD\" \"ftps://$FASTHOSTS_FTP_HOST\";
-            put -O ./ output/api-publish/app_offline.htm;
-            bye
-          "
+          lftp <<EOF
+          set cmd:fail-exit true
+          set ftp:ssl-force true
+          set ftp:ssl-protect-data true
+          set ssl:verify-certificate no
+          open -u "$FASTHOSTS_FTP_USERNAME","$FASTHOSTS_FTP_PASSWORD" "$FASTHOSTS_FTP_HOST"
+          put -O ./ output/api-publish/app_offline.htm
+          bye
+          EOF
           sleep 5
 
       - name: Upload bundled app via FTPS
@@ -229,12 +230,12 @@ jobs:
           FASTHOSTS_FTP_USERNAME: ${{ secrets.FASTHOSTS_FTP_USERNAME }}
           FASTHOSTS_FTP_PASSWORD: ${{ secrets.FASTHOSTS_FTP_PASSWORD }}
         run: |
-          lftp -e "
-            set ftp:ssl-force true;
-            set ftp:ssl-protect-data true;
-            set ssl:verify-certificate no;
-            set cmd:fail-exit no;
-            open -u \"$FASTHOSTS_FTP_USERNAME\",\"$FASTHOSTS_FTP_PASSWORD\" \"ftps://$FASTHOSTS_FTP_HOST\";
-            rm ./app_offline.htm;
-            bye
-          "
+          lftp <<EOF
+          set cmd:fail-exit false
+          set ftp:ssl-force true
+          set ftp:ssl-protect-data true
+          set ssl:verify-certificate no
+          open -u "$FASTHOSTS_FTP_USERNAME","$FASTHOSTS_FTP_PASSWORD" "$FASTHOSTS_FTP_HOST"
+          rm ./app_offline.htm
+          bye
+          EOF
