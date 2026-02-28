@@ -78,6 +78,8 @@ jobs:
           STORAGE__SECRETKEY: ${{ secrets.STORAGE__SECRETKEY }}
           STORAGE__BUCKET: ${{ secrets.STORAGE__BUCKET }}
           STORAGE__USEPATHSTYLE: ${{ secrets.STORAGE__USEPATHSTYLE }}
+          CORS__ALLOWEDORIGINS: ${{ secrets.CORS__ALLOWEDORIGINS }}
+          DATABASE__SEEDONSTARTUP: ${{ secrets.DATABASE__SEEDONSTARTUP }}
           PROVIDERS__OPENAI__API_KEY: ${{ secrets.PROVIDERS__OPENAI__API_KEY }}
           PROVIDERS__OPENAI__BASEURL: ${{ secrets.PROVIDERS__OPENAI__BASEURL }}
           PROVIDERS__ANTHROPIC__API_KEY: ${{ secrets.PROVIDERS__ANTHROPIC__API_KEY }}
@@ -98,6 +100,8 @@ jobs:
             --arg storageSecretKey "${STORAGE__SECRETKEY:-}" \
             --arg storageBucket "${STORAGE__BUCKET:-}" \
             --arg storageUsePathStyle "${STORAGE__USEPATHSTYLE:-true}" \
+            --arg corsAllowedOrigins "${CORS__ALLOWEDORIGINS:-https://gb-ai.co.uk,https://www.gb-ai.co.uk,http://localhost:3000,http://127.0.0.1:3000}" \
+            --arg databaseSeedOnStartup "${DATABASE__SEEDONSTARTUP:-true}" \
             --arg openAiApiKey "$PROVIDERS__OPENAI__API_KEY" \
             --arg openAiBaseUrl "${PROVIDERS__OPENAI__BASEURL:-https://api.openai.com}" \
             --arg anthropicApiKey "${PROVIDERS__ANTHROPIC__API_KEY:-}" \
@@ -111,6 +115,12 @@ jobs:
             '{
               ConnectionStrings: {
                 MySql: $mySql
+              },
+              Cors: {
+                AllowedOrigins: ($corsAllowedOrigins | split(",") | map(gsub("^\\s+|\\s+$"; "")) | map(select(length > 0)))
+              },
+              Database: {
+                SeedOnStartup: (($databaseSeedOnStartup | ascii_downcase) == "true")
               },
               Clerk: {
                 Issuer: $clerkIssuer,

@@ -81,6 +81,8 @@ Optional secret:
 
 Optional secrets used by the workflow when provided:
 
+- `CORS__ALLOWEDORIGINS` (comma-separated origins; defaults to `https://gb-ai.co.uk,https://www.gb-ai.co.uk,http://localhost:3000,http://127.0.0.1:3000`)
+- `DATABASE__SEEDONSTARTUP` (`true`/`false`; defaults to `true` so first production deploy can self-initialize)
 - `CLERK__ISSUER`
 - `CLERK__AUDIENCE`
 - `STORAGE__SERVICEURL`

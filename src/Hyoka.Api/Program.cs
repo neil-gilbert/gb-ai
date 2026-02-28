@@ -23,12 +23,23 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddHyokaInfrastructure(builder.Configuration);
 
+var configuredCorsOrigins = builder.Configuration
+    .GetSection("Cors:AllowedOrigins")
+    .Get<string[]>()?
+    .Where(origin => !string.IsNullOrWhiteSpace(origin))
+    .Select(origin => origin.Trim().TrimEnd('/'))
+    .Distinct(StringComparer.OrdinalIgnoreCase)
+    .ToArray()
+    ?? [];
+
+var allowedCorsOrigins = configuredCorsOrigins.Length > 0
+    ? configuredCorsOrigins
+    : ["http://localhost:3000", "http://127.0.0.1:3000"];
+
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
-        policy.WithOrigins(
-                "http://localhost:3000",
-                "http://127.0.0.1:3000")
+        policy.WithOrigins(allowedCorsOrigins)
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials());
