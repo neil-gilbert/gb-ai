@@ -135,7 +135,7 @@ export default function HomePage() {
 
       <aside
         id={sidebarPanelId}
-        className={`fixed inset-y-3 left-3 z-30 flex w-[280px] max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-[2rem] border border-white/50 bg-white/85 shadow-xl shadow-blue-900/10 backdrop-blur-xl transition-transform duration-300 md:relative md:inset-auto md:z-20 md:m-4 md:w-[280px] md:max-w-none ${
+        className={`fixed inset-y-3 left-3 z-30 flex w-[280px] max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-[2rem] border border-white/50 bg-[rgb(237,242,244)] shadow-xl shadow-blue-900/10 backdrop-blur-xl transition-transform duration-300 md:relative md:inset-auto md:z-20 md:m-4 md:w-[280px] md:max-w-none ${
           isSidebarOpen ? "translate-x-0" : "-translate-x-[120%]"
         } md:translate-x-0`}
       >
