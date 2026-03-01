@@ -66,6 +66,7 @@ export default function HomePage() {
   const greeting = getTimeOfDayGreeting(currentTime.getHours());
   const firstName = session ? formatFirstName(session.email) : "";
   const greetingText = `Good ${greeting}${firstName ? ` ${firstName}` : ""}.`;
+  const isEmptyState = messages.length === 0;
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -249,10 +250,10 @@ export default function HomePage() {
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto px-4 py-8 scroll-smooth">
-          <div className="mx-auto max-w-3xl space-y-8">
-            {messages.length === 0 ? (
-              <div className="flex min-h-[500px] flex-col items-center justify-center text-center">
+        <div className="flex-1 overflow-y-auto px-4 py-6 md:py-8 scroll-smooth">
+          <div className={`mx-auto max-w-3xl ${isEmptyState ? "flex h-full flex-col" : "space-y-8"}`}>
+            {isEmptyState ? (
+              <div className="flex flex-1 flex-col items-center justify-center text-center">
                 <div className="relative mb-6 h-36 w-56">
                   <Image src="/LogoTransp.png" alt="gb-ai logo" fill className="object-contain drop-shadow-2xl" />
                 </div>
@@ -298,7 +299,7 @@ export default function HomePage() {
                 </div>
               ))
             )}
-            <div ref={messagesEndRef} />
+            {!isEmptyState ? <div ref={messagesEndRef} /> : null}
           </div>
         </div>
 
