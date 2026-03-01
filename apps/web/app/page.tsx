@@ -5,6 +5,10 @@ import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton } from "@cl
 import { ArrowUp, Menu, Plus, Share, X, Zap } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useId, useRef, useState } from "react";
+import type { Components } from "react-markdown";
+import ReactMarkdown from "react-markdown";
+import remarkBreaks from "remark-breaks";
+import remarkGfm from "remark-gfm";
 
 function getTimeOfDayGreeting(hour: number): "morning" | "afternoon" | "evening" {
   if (hour < 12) {
@@ -27,6 +31,14 @@ function formatFirstName(email: string): string {
 
   return firstNameRaw.charAt(0).toUpperCase() + firstNameRaw.slice(1);
 }
+
+const markdownComponents: Components = {
+  a: ({ children, href, ...props }) => (
+    <a href={href} target="_blank" rel="noreferrer noopener" {...props}>
+      {children}
+    </a>
+  ),
+};
 
 export default function HomePage() {
   const {
@@ -267,7 +279,17 @@ export default function HomePage() {
                         : "rounded-tl-sm border border-white/80 bg-white text-[#0B1221] shadow-sm"
                     }`}
                   >
-                    <div className="text-[15px] leading-relaxed">{m.text}</div>
+                    <div className="text-[15px] leading-relaxed">
+                      {m.role === "assistant" ? (
+                        <div className="chat-markdown">
+                          <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={markdownComponents}>
+                            {m.text}
+                          </ReactMarkdown>
+                        </div>
+                      ) : (
+                        <div className="whitespace-pre-wrap">{m.text}</div>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))
