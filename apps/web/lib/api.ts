@@ -54,14 +54,19 @@ export async function apiFetch<T>(path: string, options: FetchOptions = {}): Pro
 }
 
 export function buildAuthHeaders(token?: string | null): Record<string, string> {
+  const headers: Record<string, string> = {};
+
+  if (typeof window !== "undefined") {
+    headers["x-correlation-id"] = buildCorrelationId();
+  }
+
   if (token) {
-    return {
-      Authorization: `Bearer ${token}`,
-    };
+    headers.Authorization = `Bearer ${token}`;
+    return headers;
   }
 
   if (typeof window === "undefined") {
-    return {};
+    return headers;
   }
 
   const userId = window.localStorage.getItem("hyoka_dev_user_id");
@@ -69,12 +74,22 @@ export function buildAuthHeaders(token?: string | null): Record<string, string> 
   const role = window.localStorage.getItem("hyoka_dev_role");
 
   if (!userId || !email) {
-    return {};
+    return headers;
   }
 
-  return {
-    "x-dev-user-id": userId,
-    "x-dev-email": email,
-    ...(role ? { "x-dev-role": role } : {}),
-  };
+  headers["x-dev-user-id"] = userId;
+  headers["x-dev-email"] = email;
+  if (role) {
+    headers["x-dev-role"] = role;
+  }
+
+  return headers;
+}
+
+function buildCorrelationId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+
+  return `cid-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }

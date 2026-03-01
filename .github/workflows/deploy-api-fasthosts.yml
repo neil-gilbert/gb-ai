@@ -84,6 +84,11 @@ jobs:
           CORS__ALLOWEDORIGINS: ${{ secrets.CORS__ALLOWEDORIGINS }}
           DATABASE__SEEDONSTARTUP: ${{ secrets.DATABASE__SEEDONSTARTUP }}
           AUTH__ENABLEDEVAUTH: ${{ secrets.AUTH__ENABLEDEVAUTH }}
+          OBSERVABILITY__HONEYCOMB__ENABLED: ${{ secrets.OBSERVABILITY__HONEYCOMB__ENABLED }}
+          OBSERVABILITY__HONEYCOMB__ENDPOINT: ${{ secrets.OBSERVABILITY__HONEYCOMB__ENDPOINT }}
+          OBSERVABILITY__HONEYCOMB__APIKEY: ${{ secrets.OBSERVABILITY__HONEYCOMB__APIKEY }}
+          OBSERVABILITY__HONEYCOMB__DATASET: ${{ secrets.OBSERVABILITY__HONEYCOMB__DATASET }}
+          OBSERVABILITY__HONEYCOMB__SERVICENAME: ${{ secrets.OBSERVABILITY__HONEYCOMB__SERVICENAME }}
           PROVIDERS__OPENAI__API_KEY: ${{ secrets.PROVIDERS__OPENAI__API_KEY }}
           PROVIDERS__OPENAI__BASEURL: ${{ secrets.PROVIDERS__OPENAI__BASEURL }}
           PROVIDERS__ANTHROPIC__API_KEY: ${{ secrets.PROVIDERS__ANTHROPIC__API_KEY }}
@@ -107,6 +112,11 @@ jobs:
             --arg corsAllowedOrigins "${CORS__ALLOWEDORIGINS:-https://gb-ai.co.uk,https://www.gb-ai.co.uk,http://localhost:3000,http://127.0.0.1:3000}" \
             --arg databaseSeedOnStartup "${DATABASE__SEEDONSTARTUP:-true}" \
             --arg authEnableDevAuth "${AUTH__ENABLEDEVAUTH:-false}" \
+            --arg honeycombEnabled "${OBSERVABILITY__HONEYCOMB__ENABLED:-false}" \
+            --arg honeycombEndpoint "${OBSERVABILITY__HONEYCOMB__ENDPOINT:-https://api.honeycomb.io}" \
+            --arg honeycombApiKey "${OBSERVABILITY__HONEYCOMB__APIKEY:-}" \
+            --arg honeycombDataset "${OBSERVABILITY__HONEYCOMB__DATASET:-}" \
+            --arg honeycombServiceName "${OBSERVABILITY__HONEYCOMB__SERVICENAME:-hyoka-api}" \
             --arg openAiApiKey "$PROVIDERS__OPENAI__API_KEY" \
             --arg openAiBaseUrl "${PROVIDERS__OPENAI__BASEURL:-https://api.openai.com}" \
             --arg anthropicApiKey "${PROVIDERS__ANTHROPIC__API_KEY:-}" \
@@ -129,6 +139,15 @@ jobs:
               },
               Auth: {
                 EnableDevAuth: (($authEnableDevAuth | ascii_downcase) == "true")
+              },
+              Observability: {
+                Honeycomb: {
+                  Enabled: (($honeycombEnabled | ascii_downcase) == "true"),
+                  Endpoint: $honeycombEndpoint,
+                  ApiKey: $honeycombApiKey,
+                  Dataset: $honeycombDataset,
+                  ServiceName: $honeycombServiceName
+                }
               },
               Clerk: {
                 Issuer: $clerkIssuer,

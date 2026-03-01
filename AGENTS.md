@@ -46,6 +46,13 @@ Use these rules when deploying this repository to Fasthosts.
 - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
 - `CLERK__ISSUER`
 
+### Optional observability secrets (GitHub Actions)
+- `OBSERVABILITY__HONEYCOMB__ENABLED`
+- `OBSERVABILITY__HONEYCOMB__ENDPOINT`
+- `OBSERVABILITY__HONEYCOMB__APIKEY`
+- `OBSERVABILITY__HONEYCOMB__DATASET`
+- `OBSERVABILITY__HONEYCOMB__SERVICENAME`
+
 ### Quick production checks
 - Health endpoint should respond: `https://gb-ai.co.uk/api/v1/health`
 - Models endpoint requires auth and should return available models: `https://gb-ai.co.uk/api/v1/models`

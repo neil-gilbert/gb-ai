@@ -88,6 +88,11 @@ Optional secrets used by the workflow when provided:
 - `DATABASE__SEEDONSTARTUP` (`true`/`false`; defaults to `true` so first production deploy can self-initialize)
 - `AUTH__ENABLEDEVAUTH` (`true`/`false`; defaults to `false` in production output)
 - `CLERK__AUDIENCE`
+- `OBSERVABILITY__HONEYCOMB__ENABLED` (`true`/`false`; defaults to `false`)
+- `OBSERVABILITY__HONEYCOMB__ENDPOINT` (defaults to `https://api.honeycomb.io`)
+- `OBSERVABILITY__HONEYCOMB__APIKEY`
+- `OBSERVABILITY__HONEYCOMB__DATASET` (optional)
+- `OBSERVABILITY__HONEYCOMB__SERVICENAME` (defaults to `hyoka-api`)
 - `STORAGE__SERVICEURL`
 - `STORAGE__ACCESSKEY`
 - `STORAGE__SECRETKEY`

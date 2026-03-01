@@ -1,8 +1,10 @@
+using System.Diagnostics;
 using System.Security.Claims;
 using System.Text.Json;
 using Hyoka.Api.Contracts;
 using Hyoka.Api.Extensions;
 using Hyoka.Api.Middleware;
+using Hyoka.Api.Observability;
 using Hyoka.Api.Security;
 using Hyoka.Application.Abstractions;
 using Hyoka.Application.Models;
@@ -15,8 +17,12 @@ using Hyoka.Infrastructure.Options;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using OpenTelemetry.Exporter;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 
 var builder = WebApplication.CreateBuilder(args);
+var chatActivitySource = new ActivitySource("Hyoka.Api.Chat");
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -47,6 +53,43 @@ builder.Services.AddCors(options =>
 
 var clerkOptions = builder.Configuration.GetSection(ClerkOptions.SectionName).Get<ClerkOptions>() ?? new ClerkOptions();
 var enableDevAuth = builder.Configuration.GetValue("Auth:EnableDevAuth", builder.Environment.IsDevelopment());
+var honeycombOptions = builder.Configuration.GetSection(HoneycombOptions.SectionName).Get<HoneycombOptions>() ?? new HoneycombOptions();
+
+if (honeycombOptions.Enabled && !string.IsNullOrWhiteSpace(honeycombOptions.ApiKey))
+{
+    builder.Services.AddOpenTelemetry()
+        .ConfigureResource(resource =>
+            resource.AddService(
+                serviceName: string.IsNullOrWhiteSpace(honeycombOptions.ServiceName) ? "hyoka-api" : honeycombOptions.ServiceName))
+        .WithTracing(tracing =>
+            tracing
+                .AddAspNetCoreInstrumentation(options =>
+                {
+                    options.RecordException = true;
+                    options.EnrichWithHttpRequest = static (activity, request) =>
+                    {
+                        if (request.Headers.TryGetValue("x-correlation-id", out var correlationId))
+                        {
+                            activity.SetTag("app.correlation_id", correlationId.ToString());
+                        }
+                    };
+                    options.EnrichWithHttpResponse = static (activity, response) =>
+                    {
+                        if (response.Headers.TryGetValue("x-correlation-id", out var correlationId))
+                        {
+                            activity.SetTag("app.correlation_id", correlationId.ToString());
+                        }
+                    };
+                })
+                .AddHttpClientInstrumentation(options => options.RecordException = true)
+                .AddSource(chatActivitySource.Name)
+                .AddOtlpExporter(options =>
+                {
+                    options.Protocol = OtlpExportProtocol.HttpProtobuf;
+                    options.Endpoint = new Uri(honeycombOptions.Endpoint);
+                    options.Headers = BuildHoneycombHeaders(honeycombOptions.ApiKey, honeycombOptions.Dataset);
+                }));
+}
 
 var authBuilder = builder.Services
     .AddAuthentication(options =>
@@ -103,6 +146,20 @@ builder.Services.AddAuthorization(options =>
 var app = builder.Build();
 
 app.UseCors();
+app.Use(async (context, next) =>
+{
+    var correlationId = context.Request.Headers["x-correlation-id"].FirstOrDefault();
+    if (string.IsNullOrWhiteSpace(correlationId))
+    {
+        correlationId = context.TraceIdentifier;
+    }
+
+    context.Response.Headers["x-correlation-id"] = correlationId;
+    context.Items["CorrelationId"] = correlationId;
+    Activity.Current?.SetTag("app.correlation_id", correlationId);
+
+    await next();
+});
 app.UseAuthentication();
 app.UseMiddleware<UserProvisioningMiddleware>();
 app.UseAuthorization();
@@ -356,10 +413,16 @@ api.MapPost("/chats/{chatId:guid}/messages/stream", async (
     CancellationToken ct) =>
 {
     var logger = loggerFactory.CreateLogger("ChatStream");
+    using var streamActivity = chatActivitySource.StartActivity("chat.stream.pipeline", ActivityKind.Internal);
     var user = await httpContext.RequireCurrentUserAsync(db, ct);
+    streamActivity?.SetTag("user.id", user.Id.ToString());
+    streamActivity?.SetTag("chat.id", chatId.ToString());
+    streamActivity?.SetTag("chat.model_key", request.ModelKey);
+    streamActivity?.SetTag("chat.text_length", request.Text?.Length ?? 0);
 
     if (string.IsNullOrWhiteSpace(request.Text))
     {
+        streamActivity?.SetStatus(ActivityStatusCode.Error, "empty_message");
         httpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
         await httpContext.Response.WriteAsJsonAsync(new { error = "Message text cannot be empty." }, ct);
         return;
@@ -370,6 +433,7 @@ api.MapPost("/chats/{chatId:guid}/messages/stream", async (
 
     if (chat is null)
     {
+        streamActivity?.SetStatus(ActivityStatusCode.Error, "chat_not_found");
         httpContext.Response.StatusCode = StatusCodes.Status404NotFound;
         await httpContext.Response.WriteAsJsonAsync(new { error = "Chat not found." }, ct);
         return;
@@ -378,6 +442,7 @@ api.MapPost("/chats/{chatId:guid}/messages/stream", async (
     var planContext = await planService.GetUsageContextAsync(user.Id, ct);
     if (!rpmLimiter.TryConsume(user.Id, planContext.RequestsPerMinute))
     {
+        streamActivity?.SetStatus(ActivityStatusCode.Error, "rpm_limited");
         httpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
         await httpContext.Response.WriteAsJsonAsync(new { error = "Rate limit exceeded for your plan." }, ct);
         return;
@@ -386,6 +451,7 @@ api.MapPost("/chats/{chatId:guid}/messages/stream", async (
     var quota = await usageService.EvaluateBeforeRequestAsync(user.Id, planContext, ct);
     if (!quota.Allowed)
     {
+        streamActivity?.SetStatus(ActivityStatusCode.Error, "quota_blocked");
         httpContext.Response.StatusCode = StatusCodes.Status402PaymentRequired;
         await httpContext.Response.WriteAsJsonAsync(new { error = quota.Reason }, ct);
         return;
@@ -394,6 +460,7 @@ api.MapPost("/chats/{chatId:guid}/messages/stream", async (
     var model = await db.ModelCatalog.FirstOrDefaultAsync(x => x.ModelKey == request.ModelKey && x.Enabled, ct);
     if (model is null)
     {
+        streamActivity?.SetStatus(ActivityStatusCode.Error, "model_not_found");
         httpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
         await httpContext.Response.WriteAsJsonAsync(new { error = "Model not found or disabled." }, ct);
         return;
@@ -401,6 +468,7 @@ api.MapPost("/chats/{chatId:guid}/messages/stream", async (
 
     if (!model.GetPlanAccess().Contains(planContext.PlanName, StringComparer.OrdinalIgnoreCase))
     {
+        streamActivity?.SetStatus(ActivityStatusCode.Error, "model_forbidden_for_plan");
         httpContext.Response.StatusCode = StatusCodes.Status403Forbidden;
         await httpContext.Response.WriteAsJsonAsync(new { error = "Model is not available on your current plan." }, ct);
         return;
@@ -417,6 +485,8 @@ api.MapPost("/chats/{chatId:guid}/messages/stream", async (
     }
     catch (Exception ex)
     {
+        streamActivity?.SetStatus(ActivityStatusCode.Error, "attachment_resolution_failed");
+        streamActivity?.RecordException(ex);
         httpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
         await httpContext.Response.WriteAsJsonAsync(new { error = ex.Message }, ct);
         return;
@@ -476,7 +546,15 @@ api.MapPost("/chats/{chatId:guid}/messages/stream", async (
 
     try
     {
-        var providerResult = await providerGateway.CompleteWithFallbackAsync(model, fallbackModel, providerRequest, ct);
+        ProviderChatResult providerResult;
+        using (var providerActivity = chatActivitySource.StartActivity("chat.stream.provider_completion", ActivityKind.Internal))
+        {
+            providerActivity?.SetTag("chat.model_key", model.ModelKey);
+            providerActivity?.SetTag("chat.provider", model.Provider);
+            providerResult = await providerGateway.CompleteWithFallbackAsync(model, fallbackModel, providerRequest, ct);
+            providerActivity?.SetTag("chat.input_tokens", providerResult.InputTokens);
+            providerActivity?.SetTag("chat.output_tokens", providerResult.OutputTokens);
+        }
 
         var assistantMessage = new Message
         {
@@ -535,9 +613,15 @@ api.MapPost("/chats/{chatId:guid}/messages/stream", async (
             dailyUsed = usageSnapshot.DailyCreditsUsed,
             monthlyUsed = usageSnapshot.MonthlyCreditsUsed
         }, ct);
+
+        streamActivity?.SetTag("chat.input_tokens", providerResult.InputTokens);
+        streamActivity?.SetTag("chat.output_tokens", providerResult.OutputTokens);
+        streamActivity?.SetTag("chat.credits_used", credits);
     }
     catch (Exception ex)
     {
+        streamActivity?.SetStatus(ActivityStatusCode.Error, "provider_error");
+        streamActivity?.RecordException(ex);
         logger.LogError(ex, "Streaming failed for chat {ChatId}", chatId);
         await WriteSseAsync(httpContext, new
         {
@@ -923,6 +1007,21 @@ static string BuildSummaryText(IReadOnlyList<Message> history, string assistantT
 
     lines.Add($"assistant: {assistantText}");
     return string.Join("\n", lines);
+}
+
+static string BuildHoneycombHeaders(string apiKey, string dataset)
+{
+    var headers = new List<string>
+    {
+        $"x-honeycomb-team={Uri.EscapeDataString(apiKey)}"
+    };
+
+    if (!string.IsNullOrWhiteSpace(dataset))
+    {
+        headers.Add($"x-honeycomb-dataset={Uri.EscapeDataString(dataset)}");
+    }
+
+    return string.Join(",", headers);
 }
 
 public partial class Program { }

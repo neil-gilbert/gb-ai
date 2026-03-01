@@ -50,6 +50,11 @@ services:
       Providers__OpenRouter__ApiKey: ${Providers__OpenRouter__ApiKey:-}
       Clerk__Issuer: ${Clerk__Issuer:-}
       Clerk__Audience: ${Clerk__Audience:-}
+      Observability__Honeycomb__Enabled: ${Observability__Honeycomb__Enabled:-false}
+      Observability__Honeycomb__Endpoint: ${Observability__Honeycomb__Endpoint:-https://api.honeycomb.io}
+      Observability__Honeycomb__ApiKey: ${Observability__Honeycomb__ApiKey:-}
+      Observability__Honeycomb__Dataset: ${Observability__Honeycomb__Dataset:-}
+      Observability__Honeycomb__ServiceName: ${Observability__Honeycomb__ServiceName:-hyoka-api}
     ports:
       - "8080:8080"
 
