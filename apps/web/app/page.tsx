@@ -219,7 +219,7 @@ export default function HomePage() {
         </div>
       </aside>
 
-      <main className="relative z-10 m-3 flex min-w-0 flex-1 flex-col overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-2xl shadow-slate-200/50 md:m-4 md:ml-0">
+      <main className="relative z-10 m-3 flex min-w-0 flex-1 flex-col overflow-hidden border border-slate-200 bg-white shadow-2xl shadow-slate-200/50 md:m-4 md:ml-0">
         <header className="flex h-20 items-center justify-between border-b border-slate-100 bg-white px-4 md:px-8">
           <div className="flex items-center gap-2">
             <button
