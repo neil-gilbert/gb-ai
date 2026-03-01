@@ -29,11 +29,12 @@ Production-style AI chat application monorepo with a T3-inspired UI, .NET backen
 ## Auth behavior
 
 - Backend supports Clerk JWT validation (`Authorization: Bearer ...`) and maps user identity from `sub`.
-- Development fallback auth is enabled via request headers:
+- Web app uses Clerk sign-in/sign-up and sends JWT bearer tokens to `/api/v1/*`.
+- Backend auto-provisions the user record on first authenticated request.
+- Development fallback auth can be enabled via `Auth__EnableDevAuth=true` and request headers:
   - `x-dev-user-id`
   - `x-dev-email`
   - optional `x-dev-role` (`user` or `admin`)
-- Web app includes a sidebar login form that sets those dev headers automatically for local use.
 
 ## Environment setup
 
@@ -74,6 +75,8 @@ Set these GitHub repository secrets before running it:
 - `FASTHOSTS_FTP_PASSWORD`
 - `PROVIDERS__OPENAI__API_KEY`
 - `CONNECTIONSTRINGS__MYSQL`
+- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
+- `CLERK__ISSUER`
 
 Optional secret:
 
@@ -83,7 +86,7 @@ Optional secrets used by the workflow when provided:
 
 - `CORS__ALLOWEDORIGINS` (comma-separated origins; defaults to `https://gb-ai.co.uk,https://www.gb-ai.co.uk,http://localhost:3000,http://127.0.0.1:3000`)
 - `DATABASE__SEEDONSTARTUP` (`true`/`false`; defaults to `true` so first production deploy can self-initialize)
-- `CLERK__ISSUER`
+- `AUTH__ENABLEDEVAUTH` (`true`/`false`; defaults to `false` in production output)
 - `CLERK__AUDIENCE`
 - `STORAGE__SERVICEURL`
 - `STORAGE__ACCESSKEY`

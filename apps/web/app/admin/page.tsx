@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { SignInButton, useAuth } from "@clerk/clerk-react";
+import { useCallback, useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 
 type AdminUser = {
@@ -45,6 +46,7 @@ type Usage = {
 };
 
 export default function AdminPage() {
+  const { isLoaded, isSignedIn, getToken } = useAuth();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [models, setModels] = useState<Model[]>([]);
@@ -52,13 +54,23 @@ export default function AdminPage() {
   const [error, setError] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
 
-  async function loadData() {
+  const loadData = useCallback(async () => {
+    if (!isLoaded || !isSignedIn) {
+      return;
+    }
+
     try {
+      const token = await getToken();
+      if (!token) {
+        setError("Authentication token missing.");
+        return;
+      }
+
       const [usersData, plansData, modelsData, usageData] = await Promise.all([
-        apiFetch<AdminUser[]>("/api/v1/admin/users"),
-        apiFetch<Plan[]>("/api/v1/admin/plans"),
-        apiFetch<Model[]>("/api/v1/admin/models"),
-        apiFetch<Usage>("/api/v1/admin/usage"),
+        apiFetch<AdminUser[]>("/api/v1/admin/users", { token }),
+        apiFetch<Plan[]>("/api/v1/admin/plans", { token }),
+        apiFetch<Model[]>("/api/v1/admin/models", { token }),
+        apiFetch<Usage>("/api/v1/admin/usage", { token }),
       ]);
 
       setUsers(usersData);
@@ -70,17 +82,28 @@ export default function AdminPage() {
       const message = err instanceof Error ? err.message : "Could not load admin data";
       setError(message);
     }
-  }
+  }, [getToken, isLoaded, isSignedIn]);
 
   useEffect(() => {
     void loadData();
-  }, []);
+  }, [loadData]);
 
   async function savePlan(plan: Plan) {
+    if (!isSignedIn) {
+      return;
+    }
+
     setSavingId(plan.id);
     try {
+      const token = await getToken();
+      if (!token) {
+        setError("Authentication token missing.");
+        return;
+      }
+
       await apiFetch(`/api/v1/admin/plans/${plan.id}`, {
         method: "PUT",
+        token,
         body: {
           name: plan.name,
           stripePriceId: plan.stripePriceId,
@@ -100,10 +123,21 @@ export default function AdminPage() {
   }
 
   async function saveModel(model: Model) {
+    if (!isSignedIn) {
+      return;
+    }
+
     setSavingId(model.id);
     try {
+      const token = await getToken();
+      if (!token) {
+        setError("Authentication token missing.");
+        return;
+      }
+
       await apiFetch(`/api/v1/admin/models/${model.id}`, {
         method: "PUT",
+        token,
         body: {
           displayName: model.displayName,
           provider: model.provider,
@@ -121,11 +155,33 @@ export default function AdminPage() {
     }
   }
 
+  if (!isLoaded) {
+    return (
+      <main className="admin-shell">
+        <p>Loading authentication...</p>
+      </main>
+    );
+  }
+
+  if (!isSignedIn) {
+    return (
+      <main className="admin-shell">
+        <h1 style={{ marginTop: 0 }}>gb-ai Admin Dashboard</h1>
+        <p style={{ color: "var(--ink-soft)" }}>Sign in with an admin account to continue.</p>
+        <SignInButton mode="modal">
+          <button className="plan-btn" type="button" style={{ width: "auto" }}>
+            Sign in
+          </button>
+        </SignInButton>
+      </main>
+    );
+  }
+
   return (
     <main className="admin-shell">
       <h1 style={{ marginTop: 0 }}>gb-ai Admin Dashboard</h1>
       <p style={{ marginTop: 0, color: "var(--ink-soft)" }}>
-        Manage gb-ai users, plans, models, and usage. Use the sidebar login as an admin user to access this page.
+        Manage gb-ai users, plans, models, and usage. Sign in with a Clerk admin account to access this page.
       </p>
 
       {error ? <p style={{ color: "var(--danger)" }}>{error}</p> : null}

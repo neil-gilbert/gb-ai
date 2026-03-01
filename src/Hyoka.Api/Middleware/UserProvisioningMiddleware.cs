@@ -19,6 +19,7 @@ public sealed class UserProvisioningMiddleware(RequestDelegate next)
             {
                 var existing = await db.Users.FirstOrDefaultAsync(x => x.ClerkUserId == externalId);
                 var email = context.User.FindFirstValue("email")
+                    ?? context.User.FindFirstValue("email_address")
                     ?? context.User.FindFirstValue(ClaimTypes.Email)
                     ?? $"{externalId}@unknown.local";
 

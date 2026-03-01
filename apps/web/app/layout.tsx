@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Mono, Playfair_Display, Source_Sans_3 } from "next/font/google";
+import AuthProviders from "@/app/providers";
 import "./globals.css";
 
 const headingFont = Playfair_Display({
@@ -32,7 +33,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${headingFont.variable} ${bodyFont.variable} ${monoFont.variable}`}>{children}</body>
+      <body className={`${headingFont.variable} ${bodyFont.variable} ${monoFont.variable}`}>
+        <AuthProviders>{children}</AuthProviders>
+      </body>
     </html>
   );
 }

@@ -46,8 +46,9 @@ builder.Services.AddCors(options =>
 });
 
 var clerkOptions = builder.Configuration.GetSection(ClerkOptions.SectionName).Get<ClerkOptions>() ?? new ClerkOptions();
+var enableDevAuth = builder.Configuration.GetValue("Auth:EnableDevAuth", builder.Environment.IsDevelopment());
 
-builder.Services
+var authBuilder = builder.Services
     .AddAuthentication(options =>
     {
         options.DefaultAuthenticateScheme = "smart";
@@ -58,7 +59,9 @@ builder.Services
         options.ForwardDefaultSelector = context =>
             context.Request.Headers.ContainsKey("Authorization")
                 ? JwtBearerDefaults.AuthenticationScheme
-                : "dev";
+                : enableDevAuth
+                    ? "dev"
+                    : JwtBearerDefaults.AuthenticationScheme;
     })
     .AddJwtBearer(options =>
     {
@@ -80,8 +83,12 @@ builder.Services
 
         options.TokenValidationParameters.NameClaimType = "sub";
         options.TokenValidationParameters.RoleClaimType = "role";
-    })
-    .AddScheme<AuthenticationSchemeOptions, DevAuthHandler>("dev", _ => { });
+    });
+
+if (enableDevAuth)
+{
+    authBuilder.AddScheme<AuthenticationSchemeOptions, DevAuthHandler>("dev", _ => { });
+}
 
 builder.Services.AddAuthorization(options =>
 {

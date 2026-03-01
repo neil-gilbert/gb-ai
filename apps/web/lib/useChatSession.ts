@@ -1,3 +1,4 @@
+import { useAuth, useUser } from "@clerk/clerk-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch, buildAuthHeaders, toApiUrl } from "@/lib/api";
 import type { ChatMessage, ChatSummary, ModelEntry } from "@/lib/types";
@@ -27,7 +28,7 @@ export type UiMessage = {
   pending?: boolean;
 };
 
-export type DevSession = {
+export type SessionUser = {
   userId: string;
   email: string;
   role: "user" | "admin";
@@ -76,43 +77,10 @@ function streamChunks(raw: string): string[] {
   return events.filter(Boolean);
 }
 
-export function loadDevSession(): DevSession | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  const userId = window.localStorage.getItem("hyoka_dev_user_id");
-  const email = window.localStorage.getItem("hyoka_dev_email");
-  const role = (window.localStorage.getItem("hyoka_dev_role") as "user" | "admin" | null) ?? "user";
-
-  if (!userId || !email) {
-    return null;
-  }
-
-  return { userId, email, role };
-}
-
-export function saveDevSession(session: DevSession | null) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  if (!session) {
-    window.localStorage.removeItem("hyoka_dev_user_id");
-    window.localStorage.removeItem("hyoka_dev_email");
-    window.localStorage.removeItem("hyoka_dev_role");
-    return;
-  }
-
-  window.localStorage.setItem("hyoka_dev_user_id", session.userId);
-  window.localStorage.setItem("hyoka_dev_email", session.email);
-  window.localStorage.setItem("hyoka_dev_role", session.role);
-}
-
 export function useChatSession() {
-  const [session, setSession] = useState<DevSession | null>(null);
-  const [loginEmail, setLoginEmail] = useState("demo@gb-ai.local");
-  const [loginRole, setLoginRole] = useState<"user" | "admin">("user");
+  const { isLoaded: isAuthLoaded, isSignedIn, userId, getToken } = useAuth();
+  const { user } = useUser();
+  const signedIn = Boolean(isSignedIn);
 
   const [searchValue, setSearchValue] = useState("");
   const [profile, setProfile] = useState<AuthMeResponse | null>(null);
@@ -130,7 +98,24 @@ export function useChatSession() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const isSignedIn = Boolean(session);
+  const session = useMemo<SessionUser | null>(() => {
+    if (!signedIn || !userId) {
+      return null;
+    }
+
+    const email =
+      user?.primaryEmailAddress?.emailAddress
+      ?? user?.emailAddresses[0]?.emailAddress
+      ?? profile?.user.email
+      ?? `${userId}@unknown.local`;
+
+    return {
+      userId,
+      email,
+      role: profile?.user.role?.toLowerCase() === "admin" ? "admin" : "user",
+    };
+  }, [profile?.user.email, profile?.user.role, signedIn, user, userId]);
+
   const canCreateNewChat = messages.length > 0;
 
   const groupedChats = useMemo(() => {
@@ -145,41 +130,70 @@ export function useChatSession() {
     return [...groups.entries()].sort((a, b) => (a[0] < b[0] ? 1 : -1));
   }, [chats]);
 
-  useEffect(() => {
-    setSession(loadDevSession());
-  }, []);
+  const getAccessToken = useCallback(async () => {
+    if (!signedIn) {
+      return null;
+    }
+
+    try {
+      return await getToken();
+    } catch {
+      return null;
+    }
+  }, [getToken, signedIn]);
 
   const loadProfile = useCallback(async () => {
-    if (!isSignedIn) {
+    if (!isAuthLoaded || !signedIn) {
+      setProfile(null);
+      return;
+    }
+
+    const token = await getAccessToken();
+    if (!token) {
       setProfile(null);
       return;
     }
 
     try {
-      const data = await apiFetch<AuthMeResponse>("/api/v1/auth/me", {});
+      const data = await apiFetch<AuthMeResponse>("/api/v1/auth/me", { token });
       setProfile(data);
     } catch {
       setProfile(null);
     }
-  }, [isSignedIn]);
+  }, [getAccessToken, isAuthLoaded, signedIn]);
 
   const loadModels = useCallback(async () => {
-    if (!isSignedIn) {
+    if (!isAuthLoaded || !signedIn) {
       setModels([]);
       setSelectedModel("");
       return;
     }
 
-    const data = await apiFetch<ModelEntry[]>("/api/v1/models", {});
+    const token = await getAccessToken();
+    if (!token) {
+      setModels([]);
+      setSelectedModel("");
+      return;
+    }
+
+    const data = await apiFetch<ModelEntry[]>("/api/v1/models", { token });
     setModels(data);
     if (!selectedModel && data.length > 0) {
       setSelectedModel(data[0].modelKey);
     }
-  }, [isSignedIn, selectedModel]);
+  }, [getAccessToken, isAuthLoaded, selectedModel, signedIn]);
 
   const loadChats = useCallback(
     async (query = "") => {
-      if (!isSignedIn) {
+      if (!isAuthLoaded || !signedIn) {
+        setChats([]);
+        setActiveChatId(null);
+        setMessages([]);
+        return;
+      }
+
+      const token = await getAccessToken();
+      if (!token) {
         setChats([]);
         setActiveChatId(null);
         setMessages([]);
@@ -187,32 +201,41 @@ export function useChatSession() {
       }
 
       const suffix = query ? `?search=${encodeURIComponent(query)}` : "";
-      const data = await apiFetch<{ items: ChatSummary[] }>(`/api/v1/chats${suffix}`, {});
+      const data = await apiFetch<{ items: ChatSummary[] }>(`/api/v1/chats${suffix}`, { token });
       setChats(data.items);
       if (!activeChatId && data.items.length > 0) {
         setActiveChatId(data.items[0].id);
       }
     },
-    [activeChatId, isSignedIn],
+    [activeChatId, getAccessToken, isAuthLoaded, signedIn],
   );
 
   const loadMessages = useCallback(
     async (chatId: string) => {
-      if (!isSignedIn) {
+      if (!isAuthLoaded || !signedIn) {
         return;
       }
 
-      const data = await apiFetch<{ items: ChatMessage[] }>(`/api/v1/chats/${chatId}/messages`, {});
+      const token = await getAccessToken();
+      if (!token) {
+        return;
+      }
+
+      const data = await apiFetch<{ items: ChatMessage[] }>(`/api/v1/chats/${chatId}/messages`, { token });
       setMessages(toUiMessages(data.items));
     },
-    [isSignedIn],
+    [getAccessToken, isAuthLoaded, signedIn],
   );
 
   useEffect(() => {
+    if (!isAuthLoaded) {
+      return;
+    }
+
     void loadProfile();
     void loadModels();
     void loadChats();
-  }, [loadProfile, loadModels, loadChats]);
+  }, [isAuthLoaded, loadProfile, loadModels, loadChats]);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -228,10 +251,11 @@ export function useChatSession() {
     }
   }, [activeChatId, loadMessages]);
 
-  async function createChat(): Promise<string> {
+  async function createChat(token: string): Promise<string> {
     const data = await apiFetch<{ id: string }>("/api/v1/chats", {
       method: "POST",
       body: {},
+      token,
     });
 
     await loadChats(searchValue);
@@ -239,11 +263,17 @@ export function useChatSession() {
   }
 
   async function handleNewChat() {
-    if (!canCreateNewChat || !isSignedIn) {
+    if (!canCreateNewChat || !signedIn) {
       return;
     }
 
-    const chatId = await createChat();
+    const token = await getAccessToken();
+    if (!token) {
+      setError("Your session expired. Please sign in again.");
+      return;
+    }
+
+    const chatId = await createChat(token);
     setActiveChatId(chatId);
     setMessages([]);
     setPendingFiles([]);
@@ -282,7 +312,7 @@ export function useChatSession() {
     setPendingFiles((curr) => curr.filter((f) => f.localId !== localId));
   }
 
-  async function uploadAttachments(): Promise<string[]> {
+  async function uploadAttachments(token: string): Promise<string[]> {
     const uploadedIds: string[] = [];
 
     for (const item of pendingFiles) {
@@ -295,6 +325,7 @@ export function useChatSession() {
             mimeType: item.file.type || "application/octet-stream",
             sizeBytes: item.file.size,
           },
+          token,
         },
       );
 
@@ -303,7 +334,7 @@ export function useChatSession() {
 
       const uploadResponse = await fetch(toApiUrl(presign.uploadUrl), {
         method: "PUT",
-        headers: buildAuthHeaders(null),
+        headers: buildAuthHeaders(token),
         body: formData,
       });
 
@@ -314,6 +345,7 @@ export function useChatSession() {
 
       await apiFetch(`/api/v1/attachments/${presign.attachmentId}/finalize`, {
         method: "POST",
+        token,
       });
 
       uploadedIds.push(presign.attachmentId);
@@ -323,8 +355,14 @@ export function useChatSession() {
   }
 
   async function sendMessage(seedText?: string) {
-    if (!isSignedIn) {
-      setError("Log in from the sidebar first.");
+    if (!signedIn) {
+      setError("Sign in or create an account to start chatting.");
+      return;
+    }
+
+    const token = await getAccessToken();
+    if (!token) {
+      setError("Your session expired. Please sign in again.");
       return;
     }
 
@@ -350,19 +388,19 @@ export function useChatSession() {
     }
 
     try {
-      const chatId = activeChatId ?? (await createChat());
+      const chatId = activeChatId ?? (await createChat(token));
       if (!activeChatId) {
         setActiveChatId(chatId);
       }
 
-      const attachmentIds = await uploadAttachments();
+      const attachmentIds = await uploadAttachments(token);
       setPendingFiles([]);
 
       const response = await fetch(toApiUrl(`/api/v1/chats/${chatId}/messages/stream`), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...buildAuthHeaders(null),
+          ...buildAuthHeaders(token),
         },
         body: JSON.stringify({
           modelKey: selectedModel,
@@ -466,43 +504,10 @@ export function useChatSession() {
     }
   }
 
-  function handleLogin() {
-    const base = loginEmail.trim().toLowerCase();
-    if (!base) {
-      return;
-    }
-
-    const nextSession: DevSession = {
-      email: base,
-      userId: base.replace(/[^a-z0-9]/gi, "-") || crypto.randomUUID(),
-      role: loginRole,
-    };
-
-    saveDevSession(nextSession);
-    setSession(nextSession);
-    setError(null);
-    return true;
-  }
-
-  function handleLogout() {
-    saveDevSession(null);
-    setSession(null);
-    setProfile(null);
-    setChats([]);
-    setMessages([]);
-    setModels([]);
-    setSelectedModel("");
-    setPendingFiles([]);
-    setInput("");
-    setError(null);
-  }
-
   return {
     session,
-    loginEmail,
-    setLoginEmail,
-    loginRole,
-    setLoginRole,
+    isAuthLoaded,
+    isSignedIn: signedIn,
     searchValue,
     setSearchValue,
     profile,
@@ -520,13 +525,10 @@ export function useChatSession() {
     pendingFiles,
     isSending,
     error,
-    isSignedIn,
     canCreateNewChat,
     handleNewChat,
     handleFilesSelected,
     removePendingFile,
     sendMessage,
-    handleLogin,
-    handleLogout,
   };
 }

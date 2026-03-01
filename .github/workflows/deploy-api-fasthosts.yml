@@ -45,6 +45,8 @@ jobs:
           test -n "${{ secrets.FASTHOSTS_FTP_PASSWORD }}" || (echo "Missing FASTHOSTS_FTP_PASSWORD" && exit 1)
           test -n "${{ secrets.PROVIDERS__OPENAI__API_KEY }}" || (echo "Missing PROVIDERS__OPENAI__API_KEY" && exit 1)
           test -n "${{ secrets.CONNECTIONSTRINGS__MYSQL }}" || (echo "Missing CONNECTIONSTRINGS__MYSQL" && exit 1)
+          test -n "${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}" || (echo "Missing NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY" && exit 1)
+          test -n "${{ secrets.CLERK__ISSUER }}" || (echo "Missing CLERK__ISSUER" && exit 1)
 
       - name: Install web dependencies
         run: npm ci
@@ -53,6 +55,7 @@ jobs:
         run: npm run build:web
         env:
           NEXT_PUBLIC_API_BASE_URL: ${{ secrets.NEXT_PUBLIC_API_BASE_URL }}
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
 
       - name: Publish API
         run: >
@@ -80,6 +83,7 @@ jobs:
           STORAGE__USEPATHSTYLE: ${{ secrets.STORAGE__USEPATHSTYLE }}
           CORS__ALLOWEDORIGINS: ${{ secrets.CORS__ALLOWEDORIGINS }}
           DATABASE__SEEDONSTARTUP: ${{ secrets.DATABASE__SEEDONSTARTUP }}
+          AUTH__ENABLEDEVAUTH: ${{ secrets.AUTH__ENABLEDEVAUTH }}
           PROVIDERS__OPENAI__API_KEY: ${{ secrets.PROVIDERS__OPENAI__API_KEY }}
           PROVIDERS__OPENAI__BASEURL: ${{ secrets.PROVIDERS__OPENAI__BASEURL }}
           PROVIDERS__ANTHROPIC__API_KEY: ${{ secrets.PROVIDERS__ANTHROPIC__API_KEY }}
@@ -102,6 +106,7 @@ jobs:
             --arg storageUsePathStyle "${STORAGE__USEPATHSTYLE:-true}" \
             --arg corsAllowedOrigins "${CORS__ALLOWEDORIGINS:-https://gb-ai.co.uk,https://www.gb-ai.co.uk,http://localhost:3000,http://127.0.0.1:3000}" \
             --arg databaseSeedOnStartup "${DATABASE__SEEDONSTARTUP:-true}" \
+            --arg authEnableDevAuth "${AUTH__ENABLEDEVAUTH:-false}" \
             --arg openAiApiKey "$PROVIDERS__OPENAI__API_KEY" \
             --arg openAiBaseUrl "${PROVIDERS__OPENAI__BASEURL:-https://api.openai.com}" \
             --arg anthropicApiKey "${PROVIDERS__ANTHROPIC__API_KEY:-}" \
@@ -121,6 +126,9 @@ jobs:
               },
               Database: {
                 SeedOnStartup: (($databaseSeedOnStartup | ascii_downcase) == "true")
+              },
+              Auth: {
+                EnableDevAuth: (($authEnableDevAuth | ascii_downcase) == "true")
               },
               Clerk: {
                 Issuer: $clerkIssuer,

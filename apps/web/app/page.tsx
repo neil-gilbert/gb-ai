@@ -1,8 +1,8 @@
 "use client";
 
-import { buildGreetingText } from "@/lib/greeting";
 import { useChatSession } from "@/lib/useChatSession";
-import { ArrowUp, Menu, Plus, Settings, Share, X, Zap } from "lucide-react";
+import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton } from "@clerk/clerk-react";
+import { ArrowUp, Menu, Plus, Share, X, Zap } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useId, useRef, useState } from "react";
 
@@ -40,7 +40,6 @@ export default function HomePage() {
     sendMessage,
     isSending,
     handleNewChat,
-    handleLogin,
     fileInputRef,
     handleFilesSelected,
     pendingFiles,
@@ -52,7 +51,7 @@ export default function HomePage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [currentTime, setCurrentTime] = useState(() => new Date());
   const sidebarPanelId = useId();
-  const greeting = getTimeOfDayGreeting(new Date().getHours());
+  const greeting = getTimeOfDayGreeting(currentTime.getHours());
   const firstName = session ? formatFirstName(session.email) : "";
   const greetingText = `Good ${greeting}${firstName ? ` ${firstName}` : ""}.`;
 
@@ -173,26 +172,43 @@ export default function HomePage() {
         </div>
 
         <div className="mt-auto border-t border-slate-100 p-4">
-          {session ? (
-            <div className="flex cursor-pointer items-center gap-3 rounded-xl p-2 transition-colors hover:bg-white/50">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#C8102E] to-[#E34B5C] text-xs font-bold text-white shadow-md">
-                {session.email[0]?.toUpperCase()}
-              </div>
+          <SignedIn>
+            <div className="flex items-center gap-3 rounded-xl p-2 transition-colors hover:bg-white/50">
               <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-bold text-[#0B1221]">{session.email.split("@")[0]}</div>
-                <div className="text-[10px] font-medium text-slate-500">Pro Plan Active</div>
+                <div className="truncate text-sm font-bold text-[#0B1221]">{session?.email.split("@")[0] ?? "User"}</div>
+                <div className="text-[10px] font-medium text-slate-500">Authenticated</div>
               </div>
-              <Settings size={16} className="text-slate-400" />
+              <UserButton
+                afterSignOutUrl="/"
+                appearance={{
+                  elements: {
+                    avatarBox: "h-8 w-8",
+                    userButtonTrigger: "focus:shadow-none",
+                  },
+                }}
+              />
             </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => handleLogin()}
-              className="w-full py-2 text-sm font-bold text-[#00247D] hover:underline"
-            >
-              Sign In
-            </button>
-          )}
+          </SignedIn>
+          <SignedOut>
+            <div className="grid grid-cols-2 gap-2">
+              <SignInButton mode="modal">
+                <button
+                  type="button"
+                  className="rounded-lg border border-[#00247D]/20 px-3 py-2 text-xs font-bold text-[#00247D] transition-colors hover:bg-[#00247D]/5"
+                >
+                  Sign In
+                </button>
+              </SignInButton>
+              <SignUpButton mode="modal">
+                <button
+                  type="button"
+                  className="rounded-lg bg-[#00247D] px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-[#001B54]"
+                >
+                  Sign Up
+                </button>
+              </SignUpButton>
+            </div>
+          </SignedOut>
         </div>
       </aside>
 
@@ -233,7 +249,9 @@ export default function HomePage() {
                 <div className="relative mb-6 h-36 w-56">
                   <Image src="/LogoTransp.png" alt="gb-ai logo" fill className="object-contain drop-shadow-2xl" />
                 </div>
-                <h1 className="greeting-heading mb-3 text-3xl font-bold">{greetingText}</h1>
+                <h1 className="greeting-heading mb-3 text-3xl font-bold" data-text={greetingText}>
+                  {greetingText}
+                </h1>
                 <p className="max-w-md text-lg text-slate-500">How can I help you today?</p>
               </div>
             ) : (
@@ -260,7 +278,6 @@ export default function HomePage() {
 
         <div className="p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] md:p-6 md:pb-6">
           <div className="group relative mx-auto max-w-3xl">
-            <div className="absolute -inset-0.5 rounded-[1.5rem] bg-gradient-to-r from-[#00247D] via-[#C8102E] to-[#00247D] opacity-20 blur transition duration-500 group-focus-within:opacity-40" />
             <div className="relative flex items-end gap-3 rounded-[1.3rem] border border-white bg-white/90 p-2 shadow-xl backdrop-blur-xl">
               <button
                 type="button"
@@ -303,7 +320,7 @@ export default function HomePage() {
                   }
                 }}
                 placeholder="Message GB-AI..."
-                className="min-h-[52px] max-h-32 flex-1 resize-none border-none bg-transparent py-3.5 text-base text-[#0B1221] placeholder:text-slate-400 focus:ring-0"
+                className="chat-input min-h-[52px] max-h-32 flex-1 resize-none border-none bg-transparent py-3.5 text-base text-[#0B1221] placeholder:text-slate-400 focus:ring-0"
                 rows={1}
               />
 
@@ -312,7 +329,7 @@ export default function HomePage() {
                 onClick={() => {
                   void sendMessage();
                 }}
-                disabled={!input.trim() || isSending}
+                disabled={!session || !input.trim() || isSending}
                 className="flex items-center justify-center rounded-xl bg-[#00247D] p-3 text-white shadow-md transition-all active:scale-95 hover:bg-[#001B54] disabled:cursor-not-allowed disabled:opacity-50"
                 aria-label="Send message"
               >

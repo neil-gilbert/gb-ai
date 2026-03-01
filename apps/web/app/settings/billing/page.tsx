@@ -1,9 +1,11 @@
 "use client";
 
+import { SignInButton, useAuth } from "@clerk/clerk-react";
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 
 export default function BillingPage() {
+  const { isLoaded, isSignedIn, getToken } = useAuth();
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string | null>(null);
 
@@ -17,10 +19,20 @@ export default function BillingPage() {
   }, []);
 
   async function startCheckout(planName: string) {
+    if (!isSignedIn) {
+      return;
+    }
+
     setLoading(true);
     try {
+      const token = await getToken();
+      if (!token) {
+        return;
+      }
+
       const data = await apiFetch<{ url: string }>("/api/v1/billing/checkout", {
         method: "POST",
+        token,
         body: { planName },
       });
 
@@ -31,10 +43,20 @@ export default function BillingPage() {
   }
 
   async function openPortal() {
+    if (!isSignedIn) {
+      return;
+    }
+
     setLoading(true);
     try {
+      const token = await getToken();
+      if (!token) {
+        return;
+      }
+
       const data = await apiFetch<{ url: string }>("/api/v1/billing/portal", {
         method: "POST",
+        token,
         body: { returnUrl: window.location.href },
       });
 
@@ -42,6 +64,28 @@ export default function BillingPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  if (!isLoaded) {
+    return (
+      <main className="admin-shell">
+        <p>Loading authentication...</p>
+      </main>
+    );
+  }
+
+  if (!isSignedIn) {
+    return (
+      <main className="admin-shell">
+        <h1 style={{ marginTop: 0 }}>gb-ai Billing</h1>
+        <p>Sign in to manage your subscription.</p>
+        <SignInButton mode="modal">
+          <button className="plan-btn" type="button" style={{ width: "auto" }}>
+            Sign in
+          </button>
+        </SignInButton>
+      </main>
+    );
   }
 
   return (

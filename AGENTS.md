@@ -43,6 +43,8 @@ Use these rules when deploying this repository to Fasthosts.
 - `FASTHOSTS_FTP_PASSWORD`
 - `PROVIDERS__OPENAI__API_KEY`
 - `CONNECTIONSTRINGS__MYSQL`
+- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
+- `CLERK__ISSUER`
 
 ### Quick production checks
 - Health endpoint should respond: `https://gb-ai.co.uk/api/v1/health`

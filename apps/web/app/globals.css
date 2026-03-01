@@ -568,82 +568,64 @@ a:focus-visible {
 
 
 .greeting-heading {
-  color: #0b1221;
+  position: relative;
+  display: inline-block;
+  color: #00247d;
+  text-shadow: 0 8px 24px rgba(0, 36, 125, 0.12);
+}
+
+.greeting-heading::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  color: transparent;
   background-image: linear-gradient(
     90deg,
-    color-mix(in srgb, #00247d 88%, white 12%) 0%,
-    #00247d 100%
+    rgba(200, 16, 46, 0) 0%,
+    rgba(200, 16, 46, 0.28) 22%,
+    #c8102e 50%,
+    rgba(200, 16, 46, 0.28) 78%,
+    rgba(200, 16, 46, 0) 100%
   );
-  background-size: 240% 100%;
-  background-position: -150% 50%;
+  background-size: 36% 100%;
+  background-repeat: no-repeat;
+  background-position: -45% 50%;
   -webkit-background-clip: text;
   background-clip: text;
-  color: transparent;
-  animation: greeting-wave 16s cubic-bezier(0.35, 0, 0.2, 1) infinite;
-  text-shadow: 0 8px 24px color-mix(in srgb, #00247d 10%, transparent);
+  animation: greeting-wave 8s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  pointer-events: none;
+}
+
+.chat-input:focus,
+.chat-input:focus-visible {
+  outline: none;
+  box-shadow: none;
 }
 
 @keyframes greeting-wave {
   0%,
-  12% {
-    background-image: linear-gradient(
-      90deg,
-      color-mix(in srgb, #00247d 88%, white 12%) 0%,
-      #00247d 100%
-    );
-    background-position: -150% 50%;
+  37.5% {
+    background-position: -45% 50%;
+    opacity: 0;
   }
 
-  48% {
-    background-image: linear-gradient(
-      90deg,
-      color-mix(in srgb, #00247d 85%, white 15%) 0% 34%,
-      color-mix(in srgb, #c8102e 87%, white 13%) 44% 56%,
-      color-mix(in srgb, #00247d 85%, white 15%) 66% 100%
-    );
-    background-position: 150% 50%;
-  }
-
-  50%,
-  62% {
-    background-image: linear-gradient(
-      90deg,
-      color-mix(in srgb, #c8102e 88%, white 12%) 0%,
-      #c8102e 100%
-    );
-    background-position: -150% 50%;
-  }
-
-  74%,
-  92% {
-    background-image: linear-gradient(
-      90deg,
-      color-mix(in srgb, #00247d 88%, white 12%) 0%,
-      #00247d 100%
-    );
-    background-position: -150% 50%;
+  44% {
+    opacity: 1;
   }
 
   100% {
-    background-image: linear-gradient(
-      90deg,
-      color-mix(in srgb, #c8102e 85%, white 15%) 0% 34%,
-      color-mix(in srgb, #00247d 87%, white 13%) 44% 56%,
-      color-mix(in srgb, #c8102e 85%, white 15%) 66% 100%
-    );
-    background-position: 150% 50%;
+    background-position: 145% 50%;
+    opacity: 1;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .greeting-heading {
+    color: #00247d;
+  }
+
+  .greeting-heading::after {
     animation: none;
-    background-image: linear-gradient(
-      90deg,
-      color-mix(in srgb, #00247d 88%, white 12%) 0%,
-      color-mix(in srgb, #c8102e 88%, white 12%) 50%,
-      color-mix(in srgb, #00247d 88%, white 12%) 100%
-    );
-    background-position: 50% 50%;
+    opacity: 0;
   }
 }
