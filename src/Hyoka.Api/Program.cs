@@ -663,7 +663,7 @@ api.MapPost("/attachments/presign", async (
     }
 });
 
-api.MapPut("/attachments/{attachmentId:guid}/upload", async (
+api.MapMethods("/attachments/{attachmentId:guid}/upload", ["POST", "PUT"], async (
     Guid attachmentId,
     HttpContext httpContext,
     HyokaDbContext db,
@@ -685,10 +685,16 @@ api.MapPut("/attachments/{attachmentId:guid}/upload", async (
         return Results.BadRequest(new { error = "No file part was provided." });
     }
 
-    await using var stream = file.OpenReadStream();
-    await attachmentService.UploadAsync(user.Id, attachmentId, stream, file.ContentType, ct);
-
-    return Results.Ok(new { status = "uploaded" });
+    try
+    {
+        await using var stream = file.OpenReadStream();
+        await attachmentService.UploadAsync(user.Id, attachmentId, stream, file.ContentType, ct);
+        return Results.Ok(new { status = "uploaded" });
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
 });
 
 api.MapPost("/attachments/{attachmentId:guid}/finalize", async (

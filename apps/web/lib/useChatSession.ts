@@ -340,14 +340,22 @@ export function useChatSession() {
       formData.append("file", item.file);
 
       const uploadResponse = await fetch(toApiUrl(presign.uploadUrl), {
-        method: "PUT",
+        method: "POST",
         headers: buildAuthHeaders(token),
         body: formData,
       });
 
       if (!uploadResponse.ok) {
         const text = await uploadResponse.text();
-        throw new Error(text || "Upload failed");
+        let message = text;
+        try {
+          const parsed = JSON.parse(text) as { error?: string; message?: string };
+          message = parsed.error ?? parsed.message ?? text;
+        } catch {
+          // Keep raw text when response is not JSON.
+        }
+
+        throw new Error(message || `Upload failed (${uploadResponse.status})`);
       }
 
       await apiFetch(`/api/v1/attachments/${presign.attachmentId}/finalize`, {
