@@ -97,6 +97,7 @@ export function useChatSession() {
   const [error, setError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isSendingRef = useRef(false);
 
   const session = useMemo<SessionUser | null>(() => {
     if (!signedIn || !userId) {
@@ -246,9 +247,15 @@ export function useChatSession() {
   }, [loadChats, searchValue]);
 
   useEffect(() => {
-    if (activeChatId) {
-      void loadMessages(activeChatId);
+    isSendingRef.current = isSending;
+  }, [isSending]);
+
+  useEffect(() => {
+    if (!activeChatId || isSendingRef.current) {
+      return;
     }
+
+    void loadMessages(activeChatId);
   }, [activeChatId, loadMessages]);
 
   async function createChat(token: string): Promise<string> {
@@ -452,29 +459,47 @@ export function useChatSession() {
             | { type: "error"; message: string };
 
           if (parsed.type === "assistant.delta") {
-            setMessages((curr) =>
-              curr.map((message) =>
+            setMessages((curr) => {
+              const assistantIndex = curr.findIndex((message) => message.id === optimisticAssistantId);
+              if (assistantIndex === -1) {
+                return [...curr, { id: optimisticAssistantId, role: "assistant", text: parsed.text, pending: true }];
+              }
+
+              return curr.map((message) =>
                 message.id === optimisticAssistantId
                   ? { ...message, text: `${message.text}${parsed.text}` }
                   : message,
-              ),
-            );
+              );
+            });
           }
 
           if (parsed.type === "assistant.completed") {
-            setMessages((curr) =>
-              curr.map((message) =>
+            setMessages((curr) => {
+              const assistantIndex = curr.findIndex((message) => message.id === optimisticAssistantId);
+              if (assistantIndex === -1) {
+                return [...curr, { id: optimisticAssistantId, role: "assistant", text: "", pending: false }];
+              }
+
+              return curr.map((message) =>
                 message.id === optimisticAssistantId ? { ...message, pending: false } : message,
-              ),
-            );
+              );
+            });
             void loadChats(searchValue);
             void loadProfile();
           }
 
           if (parsed.type === "error") {
             setError(parsed.message);
-            setMessages((curr) =>
-              curr.map((message) =>
+            setMessages((curr) => {
+              const assistantIndex = curr.findIndex((message) => message.id === optimisticAssistantId);
+              if (assistantIndex === -1) {
+                return [
+                  ...curr,
+                  { id: optimisticAssistantId, role: "assistant", pending: false, text: `Error: ${parsed.message}` },
+                ];
+              }
+
+              return curr.map((message) =>
                 message.id === optimisticAssistantId
                   ? {
                       ...message,
@@ -482,8 +507,8 @@ export function useChatSession() {
                       text: message.text || `Error: ${parsed.message}`,
                     }
                   : message,
-              ),
-            );
+              );
+            });
           }
         }
 
@@ -492,13 +517,18 @@ export function useChatSession() {
     } catch (err) {
       const message = err instanceof Error ? err.message : "Something went wrong.";
       setError(message);
-      setMessages((curr) =>
-        curr.map((m) =>
+      setMessages((curr) => {
+        const assistantIndex = curr.findIndex((m) => m.id === optimisticAssistantId);
+        if (assistantIndex === -1) {
+          return [...curr, { id: optimisticAssistantId, role: "assistant", pending: false, text: `Error: ${message}` }];
+        }
+
+        return curr.map((m) =>
           m.id === optimisticAssistantId
             ? { ...m, pending: false, text: m.text || `Error: ${message}` }
             : m,
-        ),
-      );
+        );
+      });
     } finally {
       setIsSending(false);
     }

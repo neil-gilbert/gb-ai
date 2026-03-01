@@ -2,7 +2,7 @@
 
 import { useChatSession } from "@/lib/useChatSession";
 import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton } from "@clerk/clerk-react";
-import { ArrowUp, Menu, Plus, Share, X, Zap } from "lucide-react";
+import { ArrowUp, LoaderCircle, Menu, Plus, Share, X, Zap } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useId, useRef, useState } from "react";
 import type { Components } from "react-markdown";
@@ -154,7 +154,8 @@ export default function HomePage() {
               void handleNewChat();
               setIsSidebarOpen(false);
             }}
-            className="group flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00247D] to-[#001B54] px-4 py-3 text-white shadow-lg shadow-blue-900/20 transition-all duration-300 hover:scale-[1.02] hover:shadow-blue-900/30"
+            disabled={isSending}
+            className="group flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00247D] to-[#001B54] px-4 py-3 text-white shadow-lg shadow-blue-900/20 transition-all duration-300 hover:scale-[1.02] hover:shadow-blue-900/30 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Plus size={18} className="transition-transform duration-300 group-hover:rotate-90" />
             <span className="text-sm font-semibold tracking-wide">New Session</span>
@@ -171,6 +172,7 @@ export default function HomePage() {
                 setActiveChatId(chat.id);
                 setIsSidebarOpen(false);
               }}
+              disabled={isSending}
               className={`flex w-full items-center rounded-xl p-3 text-left transition-all duration-200 ${
                 activeChatId === chat.id
                   ? "border border-blue-50 bg-white text-[#00247D] shadow-md"
@@ -282,9 +284,18 @@ export default function HomePage() {
                     <div className="text-[15px] leading-relaxed">
                       {m.role === "assistant" ? (
                         <div className="chat-markdown">
-                          <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={markdownComponents}>
-                            {m.text}
-                          </ReactMarkdown>
+                          {m.pending && !m.text ? (
+                            <div className="flex items-center gap-2 text-slate-400">
+                              <span className="h-2.5 w-2.5 animate-bounce rounded-full bg-slate-300 [animation-delay:-0.3s]" />
+                              <span className="h-2.5 w-2.5 animate-bounce rounded-full bg-slate-300 [animation-delay:-0.15s]" />
+                              <span className="h-2.5 w-2.5 animate-bounce rounded-full bg-slate-300" />
+                              <span className="ml-1 text-[11px] font-semibold tracking-[0.14em] text-slate-400 uppercase">Thinking</span>
+                            </div>
+                          ) : (
+                            <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={markdownComponents}>
+                              {m.text}
+                            </ReactMarkdown>
+                          )}
                         </div>
                       ) : (
                         <div className="whitespace-pre-wrap">{m.text}</div>
@@ -304,6 +315,7 @@ export default function HomePage() {
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
+                disabled={isSending}
                 className="rounded-xl p-3 text-slate-400 transition-all hover:bg-blue-50/50 hover:text-[#00247D]"
                 aria-label="Attach files"
               >
@@ -355,11 +367,14 @@ export default function HomePage() {
                 className="flex items-center justify-center rounded-xl bg-[#00247D] p-3 text-white shadow-md transition-all active:scale-95 hover:bg-[#001B54] disabled:cursor-not-allowed disabled:opacity-50"
                 aria-label="Send message"
               >
-                <ArrowUp size={20} strokeWidth={2.5} />
+                {isSending ? <LoaderCircle size={20} className="animate-spin" /> : <ArrowUp size={20} strokeWidth={2.5} />}
               </button>
             </div>
 
             {error ? <p className="mt-2 text-center text-xs font-medium text-[#C8102E]">{error}</p> : null}
+            {!error && isSending ? (
+              <p className="mt-2 text-center text-xs font-medium text-slate-500">Sending message and waiting for response...</p>
+            ) : null}
 
             <div className="mt-3 flex items-center justify-center gap-1.5 text-center opacity-50">
               <Zap size={10} className="fill-[#C8102E] text-[#C8102E]" />
