@@ -1,8 +1,9 @@
 "use client";
 
 import { useChatSession } from "@/lib/useChatSession";
+import { usePwaLifecycle } from "@/lib/usePwaLifecycle";
 import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton } from "@clerk/clerk-react";
-import { ArrowUp, LoaderCircle, Menu, Plus, Share, X, Zap } from "lucide-react";
+import { ArrowUp, Download, LoaderCircle, Menu, Plus, RefreshCw, Share, WifiOff, X, Zap } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useId, useRef, useState } from "react";
 import type { Components } from "react-markdown";
@@ -58,6 +59,13 @@ export default function HomePage() {
     removePendingFile,
     error,
   } = useChatSession();
+  const {
+    isInstallable,
+    promptInstall,
+    updateAvailable,
+    applyUpdate,
+    isOffline,
+  } = usePwaLifecycle();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -240,6 +248,25 @@ export default function HomePage() {
             <span className="text-sm font-medium text-slate-600">GB-AI Model 4.0</span>
           </div>
           <div className="flex items-center gap-3">
+            {isOffline ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-semibold tracking-wide text-amber-700 uppercase">
+                <WifiOff size={12} />
+                <span className="hidden sm:inline">Offline mode: browsing only</span>
+                <span className="sm:hidden">Offline</span>
+              </span>
+            ) : null}
+            {isInstallable ? (
+              <button
+                type="button"
+                onClick={() => {
+                  void promptInstall();
+                }}
+                className="inline-flex items-center gap-1.5 rounded-full border border-[#00247D]/20 bg-white px-3 py-1.5 text-xs font-semibold text-[#00247D] transition-colors hover:bg-[#00247D]/5"
+              >
+                <Download size={14} />
+                <span>Install App</span>
+              </button>
+            ) : null}
             <button
               type="button"
               className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-slate-500 shadow-sm transition-colors hover:text-[#00247D]"
@@ -302,6 +329,22 @@ export default function HomePage() {
             {!isEmptyState ? <div ref={messagesEndRef} /> : null}
           </div>
         </div>
+
+        {updateAvailable ? (
+          <div className="px-4 pt-3 md:px-6">
+            <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 rounded-xl border border-[#00247D]/15 bg-[#F8FAFC] px-4 py-2.5 text-sm text-slate-700">
+              <span>New version available.</span>
+              <button
+                type="button"
+                onClick={applyUpdate}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-[#00247D] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[#001B54]"
+              >
+                <RefreshCw size={13} />
+                <span>Refresh now</span>
+              </button>
+            </div>
+          </div>
+        ) : null}
 
         <div className="p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] md:p-6 md:pb-6">
           <div className="group relative mx-auto max-w-3xl">

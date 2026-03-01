@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Mono, Playfair_Display, Source_Sans_3 } from "next/font/google";
 import AuthProviders from "@/app/providers";
 import "./globals.css";
@@ -24,6 +24,24 @@ const bodyFont = Source_Sans_3({
 export const metadata: Metadata = {
   title: "gb-ai",
   description: "GB-focused AI chat application",
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+    shortcut: ["/icons/icon-192.png"],
+  },
+  appleWebApp: {
+    capable: true,
+    title: "GB-AI",
+    statusBarStyle: "default",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#ffffff",
 };
 
 export default function RootLayout({

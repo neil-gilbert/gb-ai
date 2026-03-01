@@ -164,7 +164,40 @@ app.UseAuthentication();
 app.UseMiddleware<UserProvisioningMiddleware>();
 app.UseAuthorization();
 app.UseDefaultFiles();
-app.UseStaticFiles();
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = context =>
+    {
+        var path = context.Context.Request.Path.Value ?? string.Empty;
+        var headers = context.Context.Response.Headers;
+
+        if (string.Equals(path, "/sw.js", StringComparison.OrdinalIgnoreCase))
+        {
+            headers.CacheControl = "no-cache, no-store, must-revalidate";
+            headers.Pragma = "no-cache";
+            headers.Expires = "0";
+            return;
+        }
+
+        if (string.Equals(path, "/manifest.webmanifest", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(path, "/offline.html", StringComparison.OrdinalIgnoreCase))
+        {
+            headers.CacheControl = "no-cache";
+            return;
+        }
+
+        if (path.StartsWith("/_next/static/", StringComparison.OrdinalIgnoreCase))
+        {
+            headers.CacheControl = "public, max-age=31536000, immutable";
+            return;
+        }
+
+        if (path.StartsWith("/icons/", StringComparison.OrdinalIgnoreCase))
+        {
+            headers.CacheControl = "public, max-age=86400";
+        }
+    }
+});
 
 if (app.Environment.IsDevelopment())
 {

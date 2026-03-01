@@ -52,10 +52,13 @@ jobs:
         run: npm ci
 
       - name: Build static web export
-        run: npm run build:web
+        run: |
+          npm run pwa:icons -w apps/web
+          npm run build:web
         env:
           NEXT_PUBLIC_API_BASE_URL: ${{ secrets.NEXT_PUBLIC_API_BASE_URL }}
           NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+          NEXT_PUBLIC_APP_VERSION: ${{ github.sha }}
 
       - name: Publish API
         run: >
