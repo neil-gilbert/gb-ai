@@ -115,14 +115,7 @@ export default function HomePage() {
   }, [isSidebarOpen]);
 
   return (
-    <div className="relative flex h-dvh min-h-dvh overflow-hidden bg-[#F8FAFC] font-sans text-[#0B1221] selection:bg-[#00247D] selection:text-white">
-      <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div
-          className="absolute -top-[20%] -right-[10%] h-[800px] w-[800px] animate-pulse rounded-full bg-gradient-to-br from-[#00247D]/10 to-[#C8102E]/10 opacity-60 blur-3xl"
-          style={{ animationDuration: "8s" }}
-        />
-        <div className="absolute top-[40%] -left-[10%] h-[600px] w-[600px] rounded-full bg-blue-100/40 opacity-50 blur-3xl" />
-      </div>
+    <div className="relative flex h-dvh min-h-dvh overflow-hidden bg-white font-sans text-[#0B1221] selection:bg-[#00247D] selection:text-white">
 
       {isSidebarOpen ? (
         <button
@@ -226,8 +219,8 @@ export default function HomePage() {
         </div>
       </aside>
 
-      <main className="relative z-10 m-3 flex min-w-0 flex-1 flex-col overflow-hidden rounded-[2rem] border border-white/60 bg-white/40 shadow-2xl shadow-slate-200/50 backdrop-blur-md md:m-4 md:ml-0">
-        <header className="flex h-20 items-center justify-between border-b border-white/50 bg-white/30 px-4 backdrop-blur-md md:px-8">
+      <main className="relative z-10 m-3 flex min-w-0 flex-1 flex-col overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-2xl shadow-slate-200/50 md:m-4 md:ml-0">
+        <header className="flex h-20 items-center justify-between border-b border-slate-100 bg-white px-4 md:px-8">
           <div className="flex items-center gap-2">
             <button
               type="button"
