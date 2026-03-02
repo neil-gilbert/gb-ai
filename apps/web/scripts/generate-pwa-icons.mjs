@@ -8,7 +8,6 @@ const __dirname = path.dirname(__filename);
 const webRoot = path.resolve(__dirname, "..");
 const sourcePath = path.join(webRoot, "public", "LogoPwa.png");
 const iconsDir = path.join(webRoot, "public", "icons");
-const brandBackground = { r: 0, g: 36, b: 125, alpha: 1 };
 const safeAreaRatio = 0.76;
 
 const targets = [
@@ -36,7 +35,7 @@ async function generateIcon(size, destination) {
       width: size,
       height: size,
       channels: 4,
-      background: brandBackground,
+      background: { r: 255, g: 255, b: 255, alpha: 0 },
     },
   })
     .composite([{ input: logoBuffer, gravity: "center" }])
