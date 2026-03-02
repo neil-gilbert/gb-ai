@@ -22,4 +22,12 @@
     <ProjectReference Include="..\Hyoka.Domain\Hyoka.Domain.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="..\..\docs\chat-personality-and-guardrails.md">
+      <Link>Prompts\chat-personality-and-guardrails.md</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+
 </Project>

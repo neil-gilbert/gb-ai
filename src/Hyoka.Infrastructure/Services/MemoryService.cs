@@ -10,6 +10,8 @@ public sealed class MemoryService(HyokaDbContext db, IClock clock) : IMemoryServ
 {
     private static readonly Regex NameRegex = new(@"my name is\s+([A-Za-z\-']{2,40})", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex PreferenceRegex = new(@"i (?:prefer|like)\s+([^\.\!\?]{3,80})", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private const string PromptFileName = "chat-personality-and-guardrails.md";
+    private readonly string baseSystemPrompt = LoadBaseSystemPrompt();
 
     public async Task<string> BuildSystemContextAsync(Guid userId, Guid chatId, CancellationToken ct)
     {
@@ -22,7 +24,8 @@ public sealed class MemoryService(HyokaDbContext db, IClock clock) : IMemoryServ
         var summary = await db.ChatSummaries.FirstOrDefaultAsync(x => x.ChatId == chatId, ct);
 
         var sb = new StringBuilder();
-        sb.AppendLine("You are a helpful AI assistant.");
+        sb.AppendLine(baseSystemPrompt);
+        sb.AppendLine();
 
         if (facts.Count > 0)
         {
@@ -40,6 +43,36 @@ public sealed class MemoryService(HyokaDbContext db, IClock clock) : IMemoryServ
         }
 
         return sb.ToString().Trim();
+    }
+
+    private static string LoadBaseSystemPrompt()
+    {
+        var candidatePaths = new[]
+        {
+            Path.Combine(AppContext.BaseDirectory, "Prompts", PromptFileName),
+            Path.Combine(AppContext.BaseDirectory, PromptFileName),
+            Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "docs", PromptFileName))
+        };
+
+        foreach (var path in candidatePaths)
+        {
+            if (!File.Exists(path))
+            {
+                continue;
+            }
+
+            var content = File.ReadAllText(path).Trim();
+            if (!string.IsNullOrWhiteSpace(content))
+            {
+                return content;
+            }
+        }
+
+        return """
+        You are GB-AI, a helpful assistant.
+        Be warm, polite, and clear. Keep responses friendly and respectful.
+        Refuse hateful or abusive language and invite the user to rephrase respectfully.
+        """;
     }
 
     public async Task UpsertConversationSummaryAsync(Guid chatId, string conversationText, CancellationToken ct)
