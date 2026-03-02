@@ -293,13 +293,13 @@ export default function HomePage() {
               messages.map((m) => (
                 <div
                   key={m.id}
-                  className={`flex animate-in slide-in-from-bottom-2 fade-in duration-500 ${m.role === "user" ? "justify-end" : "justify-start"}`}
+                  className={`flex animate-in slide-in-from-bottom-2 fade-in duration-500 ${m.role === "user" ? "justify-end" : "w-full justify-start"}`}
                 >
                   <div
-                    className={`max-w-[85%] rounded-2xl p-6 ${
+                    className={`${m.role === "user" ? "max-w-[85%] rounded-2xl p-6" : "w-full px-0 py-1"} ${
                       m.role === "user"
                         ? "rounded-tr-sm bg-[#00247D] text-white shadow-lg shadow-blue-900/20"
-                        : "rounded-tl-sm border border-white/80 bg-white text-[#0B1221] shadow-sm"
+                        : "text-[#0B1221]"
                     }`}
                   >
                     <div className="text-[15px] leading-relaxed">
