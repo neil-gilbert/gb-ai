@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Hyoka.Api.Extensions;
 using Hyoka.Domain.Entities;
 using Hyoka.Domain.Enums;
 using Hyoka.Infrastructure.Data;
@@ -17,6 +18,12 @@ public sealed class UserProvisioningMiddleware(RequestDelegate next)
 
             if (!string.IsNullOrWhiteSpace(externalId))
             {
+                if (HttpContextExtensions.IsGuestExternalId(externalId))
+                {
+                    await next(context);
+                    return;
+                }
+
                 var existing = await db.Users.FirstOrDefaultAsync(x => x.ClerkUserId == externalId);
                 var email = context.User.FindFirstValue("email")
                     ?? context.User.FindFirstValue("email_address")

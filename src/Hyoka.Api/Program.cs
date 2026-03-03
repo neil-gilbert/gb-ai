@@ -23,6 +23,7 @@ using OpenTelemetry.Trace;
 
 var builder = WebApplication.CreateBuilder(args);
 var chatActivitySource = new ActivitySource("Hyoka.Api.Chat");
+const int GuestMessageLimit = 10;
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -100,11 +101,27 @@ var authBuilder = builder.Services
     .AddPolicyScheme("smart", "JWT or dev auth", options =>
     {
         options.ForwardDefaultSelector = context =>
-            context.Request.Headers.ContainsKey("Authorization")
-                ? JwtBearerDefaults.AuthenticationScheme
-                : enableDevAuth
-                    ? "dev"
-                    : JwtBearerDefaults.AuthenticationScheme;
+        {
+            if (context.Request.Headers.ContainsKey("Authorization"))
+            {
+                return JwtBearerDefaults.AuthenticationScheme;
+            }
+
+            var hasDevHeaders = context.Request.Headers.ContainsKey("x-dev-user-id")
+                || context.Request.Headers.ContainsKey("x-dev-email");
+            if (enableDevAuth && hasDevHeaders)
+            {
+                return "dev";
+            }
+
+            if (context.Request.Path.StartsWithSegments("/api/v1")
+                && !context.Request.Path.StartsWithSegments("/api/v1/webhooks"))
+            {
+                return "guest";
+            }
+
+            return JwtBearerDefaults.AuthenticationScheme;
+        };
     })
     .AddJwtBearer(options =>
     {
@@ -126,7 +143,8 @@ var authBuilder = builder.Services
 
         options.TokenValidationParameters.NameClaimType = "sub";
         options.TokenValidationParameters.RoleClaimType = "role";
-    });
+    })
+    .AddScheme<AuthenticationSchemeOptions, GuestAuthHandler>("guest", _ => { });
 
 if (enableDevAuth)
 {
@@ -245,6 +263,13 @@ api.MapGet("/auth/me", async (
     var plan = await planService.GetActivePlanAsync(user.Id, ct);
     var usageContext = await planService.GetUsageContextAsync(user.Id, ct);
     var usage = await usageService.GetSnapshotAsync(user.Id, usageContext, ct);
+    var isGuest = user.IsGuestUser();
+    var guestMessagesUsed = isGuest
+        ? await (from message in db.Messages
+            join chat in db.Chats on message.ChatId equals chat.Id
+            where message.Role == MessageRole.User && chat.UserId == user.Id
+            select message.Id).CountAsync(ct)
+        : 0;
 
     return Results.Ok(new
     {
@@ -253,6 +278,7 @@ api.MapGet("/auth/me", async (
             user.Id,
             user.Email,
             user.Role,
+            isGuest,
             user.TimezoneMetadata,
             user.CreatedAtUtc
         },
@@ -269,7 +295,15 @@ api.MapGet("/auth/me", async (
                 plan.CreditsPerMonth
             }
         },
-        usage
+        usage,
+        guest = isGuest
+            ? new
+            {
+                messageLimit = GuestMessageLimit,
+                messagesUsed = guestMessagesUsed,
+                messagesRemaining = Math.Max(GuestMessageLimit - guestMessagesUsed, 0)
+            }
+            : null
     });
 });
 
@@ -452,6 +486,25 @@ api.MapPost("/chats/{chatId:guid}/messages/stream", async (
     streamActivity?.SetTag("chat.id", chatId.ToString());
     streamActivity?.SetTag("chat.model_key", request.ModelKey);
     streamActivity?.SetTag("chat.text_length", request.Text?.Length ?? 0);
+
+    if (user.IsGuestUser())
+    {
+        var guestMessageCount = await (from message in db.Messages
+            join chatEntry in db.Chats on message.ChatId equals chatEntry.Id
+            where message.Role == MessageRole.User && chatEntry.UserId == user.Id
+            select message.Id).CountAsync(ct);
+        streamActivity?.SetTag("guest.message_count", guestMessageCount);
+        if (guestMessageCount >= GuestMessageLimit)
+        {
+            streamActivity?.SetStatus(ActivityStatusCode.Error, "guest_limit_reached");
+            httpContext.Response.StatusCode = StatusCodes.Status402PaymentRequired;
+            await httpContext.Response.WriteAsJsonAsync(new
+            {
+                error = $"You've reached the {GuestMessageLimit} free messages. Please sign up or sign in to continue."
+            }, ct);
+            return;
+        }
+    }
 
     if (string.IsNullOrWhiteSpace(request.Text))
     {
@@ -780,6 +833,10 @@ api.MapPost("/billing/checkout", async (
     CancellationToken ct) =>
 {
     var user = await httpContext.RequireCurrentUserAsync(db, ct);
+    if (user.IsGuestUser())
+    {
+        return Results.BadRequest(new { error = "Sign in or create an account before starting checkout." });
+    }
 
     var success = request.SuccessUrl ?? config["Stripe:SuccessUrl"];
     var cancel = request.CancelUrl ?? config["Stripe:CancelUrl"];
@@ -797,6 +854,10 @@ api.MapPost("/billing/portal", async (
     CancellationToken ct) =>
 {
     var user = await httpContext.RequireCurrentUserAsync(db, ct);
+    if (user.IsGuestUser())
+    {
+        return Results.BadRequest(new { error = "Sign in or create an account before opening the billing portal." });
+    }
 
     var returnUrl = request.ReturnUrl ?? config["Stripe:SuccessUrl"];
     var url = await billingService.CreatePortalSessionAsync(user.Id, returnUrl ?? string.Empty, ct);

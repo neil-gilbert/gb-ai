@@ -44,10 +44,12 @@ const markdownComponents: Components = {
 export default function HomePage() {
   const {
     session,
+    profile,
     chats,
     activeChatId,
     setActiveChatId,
     messages,
+    selectedModel,
     input,
     setInput,
     sendMessage,
@@ -400,7 +402,7 @@ export default function HomePage() {
                 onClick={() => {
                   void sendMessage();
                 }}
-                disabled={!session || !input.trim() || isSending}
+                disabled={!input.trim() || isSending || !selectedModel}
                 className="flex items-center justify-center rounded-xl bg-[#00247D] p-3 text-white shadow-md transition-all active:scale-95 hover:bg-[#001B54] disabled:cursor-not-allowed disabled:opacity-50"
                 aria-label="Send message"
               >
@@ -411,6 +413,11 @@ export default function HomePage() {
             {error ? <p className="mt-2 text-center text-xs font-medium text-[#C8102E]">{error}</p> : null}
             {!error && isSending ? (
               <p className="mt-2 text-center text-xs font-medium text-slate-500">Sending message and waiting for response...</p>
+            ) : null}
+            {!session ? (
+              <p className="mt-2 text-center text-xs font-medium text-slate-500">
+                Guest mode: {profile?.guest?.messagesRemaining ?? 10} free messages remaining. Sign in to keep chatting.
+              </p>
             ) : null}
 
             <div className="mt-3 flex items-center justify-center gap-1.5 text-center opacity-50">

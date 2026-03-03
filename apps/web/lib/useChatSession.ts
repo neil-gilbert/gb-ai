@@ -35,9 +35,10 @@ export type SessionUser = {
 };
 
 export type AuthMeResponse = {
-  user: { id: string; email: string; role: string };
+  user: { id: string; email: string; role: string; isGuest?: boolean };
   plan: { name: string };
   usage: { dailyCreditsUsed: number; dailyCreditLimit: number };
+  guest?: { messageLimit: number; messagesUsed: number; messagesRemaining: number } | null;
 };
 
 export function toUiMessages(messages: ChatMessage[]): UiMessage[] {
@@ -144,13 +145,13 @@ export function useChatSession() {
   }, [getToken, signedIn]);
 
   const loadProfile = useCallback(async () => {
-    if (!isAuthLoaded || !signedIn) {
+    if (!isAuthLoaded) {
       setProfile(null);
       return;
     }
 
     const token = await getAccessToken();
-    if (!token) {
+    if (signedIn && !token) {
       setProfile(null);
       return;
     }
@@ -164,14 +165,14 @@ export function useChatSession() {
   }, [getAccessToken, isAuthLoaded, signedIn]);
 
   const loadModels = useCallback(async () => {
-    if (!isAuthLoaded || !signedIn) {
+    if (!isAuthLoaded) {
       setModels([]);
       setSelectedModel("");
       return;
     }
 
     const token = await getAccessToken();
-    if (!token) {
+    if (signedIn && !token) {
       setModels([]);
       setSelectedModel("");
       return;
@@ -186,7 +187,7 @@ export function useChatSession() {
 
   const loadChats = useCallback(
     async (query = "") => {
-      if (!isAuthLoaded || !signedIn) {
+      if (!isAuthLoaded) {
         setChats([]);
         setActiveChatId(null);
         setMessages([]);
@@ -194,7 +195,7 @@ export function useChatSession() {
       }
 
       const token = await getAccessToken();
-      if (!token) {
+      if (signedIn && !token) {
         setChats([]);
         setActiveChatId(null);
         setMessages([]);
@@ -213,12 +214,12 @@ export function useChatSession() {
 
   const loadMessages = useCallback(
     async (chatId: string) => {
-      if (!isAuthLoaded || !signedIn) {
+      if (!isAuthLoaded) {
         return;
       }
 
       const token = await getAccessToken();
-      if (!token) {
+      if (signedIn && !token) {
         return;
       }
 
@@ -258,7 +259,7 @@ export function useChatSession() {
     void loadMessages(activeChatId);
   }, [activeChatId, loadMessages]);
 
-  async function createChat(token: string): Promise<string> {
+  async function createChat(token?: string | null): Promise<string> {
     const data = await apiFetch<{ id: string }>("/api/v1/chats", {
       method: "POST",
       body: {},
@@ -270,12 +271,12 @@ export function useChatSession() {
   }
 
   async function handleNewChat() {
-    if (!canCreateNewChat || !signedIn) {
+    if (!canCreateNewChat) {
       return;
     }
 
     const token = await getAccessToken();
-    if (!token) {
+    if (signedIn && !token) {
       setError("Your session expired. Please sign in again.");
       return;
     }
@@ -319,7 +320,7 @@ export function useChatSession() {
     setPendingFiles((curr) => curr.filter((f) => f.localId !== localId));
   }
 
-  async function uploadAttachments(token: string): Promise<string[]> {
+  async function uploadAttachments(token?: string | null): Promise<string[]> {
     const uploadedIds: string[] = [];
 
     for (const item of pendingFiles) {
@@ -370,13 +371,8 @@ export function useChatSession() {
   }
 
   async function sendMessage(seedText?: string) {
-    if (!signedIn) {
-      setError("Sign in or create an account to start chatting.");
-      return;
-    }
-
     const token = await getAccessToken();
-    if (!token) {
+    if (signedIn && !token) {
       setError("Your session expired. Please sign in again.");
       return;
     }
@@ -426,7 +422,15 @@ export function useChatSession() {
 
       if (!response.ok || !response.body) {
         const text = await response.text();
-        throw new Error(text || "Failed to stream response.");
+        let message = text;
+        try {
+          const parsed = JSON.parse(text) as { error?: string; message?: string };
+          message = parsed.error ?? parsed.message ?? text;
+        } catch {
+          // Keep raw text when response is not JSON.
+        }
+
+        throw new Error(message || "Failed to stream response.");
       }
 
       const reader = response.body.getReader();
