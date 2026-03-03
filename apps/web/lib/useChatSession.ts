@@ -119,6 +119,10 @@ export function useChatSession() {
   }, [profile?.user.email, profile?.user.role, signedIn, user, userId]);
 
   const canCreateNewChat = messages.length > 0;
+  const guestMessageLimit = profile?.guest?.messageLimit ?? 10;
+  const guestMessagesUsed = profile?.guest?.messagesUsed ?? 0;
+  const guestMessagesRemaining = profile?.guest?.messagesRemaining ?? (signedIn ? 0 : guestMessageLimit);
+  const isGuestLimitReached = !signedIn && guestMessagesRemaining <= 0;
 
   const groupedChats = useMemo(() => {
     const groups = new Map<string, ChatSummary[]>();
@@ -382,6 +386,11 @@ export function useChatSession() {
       return;
     }
 
+    if (isGuestLimitReached) {
+      setError(`You've reached the ${guestMessageLimit} free messages. Please sign up or sign in to continue.`);
+      return;
+    }
+
     setError(null);
     setIsSending(true);
 
@@ -421,6 +430,10 @@ export function useChatSession() {
       });
 
       if (!response.ok || !response.body) {
+        if (response.status === 402) {
+          void loadProfile();
+        }
+
         const text = await response.text();
         let message = text;
         try {
@@ -529,6 +542,9 @@ export function useChatSession() {
     } catch (err) {
       const message = err instanceof Error ? err.message : "Something went wrong.";
       setError(message);
+      if (!signedIn) {
+        void loadProfile();
+      }
       setMessages((curr) => {
         const assistantIndex = curr.findIndex((m) => m.id === optimisticAssistantId);
         if (assistantIndex === -1) {
@@ -567,6 +583,10 @@ export function useChatSession() {
     pendingFiles,
     isSending,
     error,
+    guestMessageLimit,
+    guestMessagesUsed,
+    guestMessagesRemaining,
+    isGuestLimitReached,
     canCreateNewChat,
     handleNewChat,
     handleFilesSelected,

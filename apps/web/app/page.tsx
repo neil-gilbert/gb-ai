@@ -3,7 +3,7 @@
 import { useChatSession } from "@/lib/useChatSession";
 import { usePwaLifecycle } from "@/lib/usePwaLifecycle";
 import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton } from "@clerk/clerk-react";
-import { ArrowUp, Download, LoaderCircle, Menu, Plus, RefreshCw, Share, WifiOff, X, Zap } from "lucide-react";
+import { ArrowUp, Download, LoaderCircle, Menu, Plus, RefreshCw, Share, Sparkles, WifiOff, X, Zap } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useId, useRef, useState } from "react";
 import type { Components } from "react-markdown";
@@ -44,7 +44,6 @@ const markdownComponents: Components = {
 export default function HomePage() {
   const {
     session,
-    profile,
     chats,
     activeChatId,
     setActiveChatId,
@@ -60,6 +59,10 @@ export default function HomePage() {
     pendingFiles,
     removePendingFile,
     error,
+    guestMessageLimit,
+    guestMessagesUsed,
+    guestMessagesRemaining,
+    isGuestLimitReached,
   } = useChatSession();
   const {
     isInstallable,
@@ -77,6 +80,7 @@ export default function HomePage() {
   const firstName = session ? formatFirstName(session.email) : "";
   const greetingText = `Good ${greeting}${firstName ? ` ${firstName}` : ""}.`;
   const isEmptyState = messages.length === 0;
+  const guestLimitReached = !session && isGuestLimitReached;
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -354,7 +358,7 @@ export default function HomePage() {
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                disabled={isSending}
+                disabled={isSending || guestLimitReached}
                 className="rounded-xl p-3 text-slate-400 transition-all hover:bg-blue-50/50 hover:text-[#00247D]"
                 aria-label="Attach files"
               >
@@ -392,7 +396,8 @@ export default function HomePage() {
                     void sendMessage();
                   }
                 }}
-                placeholder="Message GB-AI..."
+                placeholder={guestLimitReached ? "Sign in to continue chatting..." : "Message GB-AI..."}
+                disabled={isSending || guestLimitReached}
                 className="chat-input min-h-[52px] max-h-32 flex-1 resize-none border-none bg-transparent py-3.5 text-base text-[#0B1221] placeholder:text-slate-400 focus:ring-0"
                 rows={1}
               />
@@ -402,7 +407,7 @@ export default function HomePage() {
                 onClick={() => {
                   void sendMessage();
                 }}
-                disabled={!input.trim() || isSending || !selectedModel}
+                disabled={!input.trim() || isSending || !selectedModel || guestLimitReached}
                 className="flex items-center justify-center rounded-xl bg-[#00247D] p-3 text-white shadow-md transition-all active:scale-95 hover:bg-[#001B54] disabled:cursor-not-allowed disabled:opacity-50"
                 aria-label="Send message"
               >
@@ -410,13 +415,49 @@ export default function HomePage() {
               </button>
             </div>
 
-            {error ? <p className="mt-2 text-center text-xs font-medium text-[#C8102E]">{error}</p> : null}
+            {guestLimitReached ? (
+              <div className="mt-3 rounded-2xl border border-[#00247D]/15 bg-gradient-to-br from-[#FDFEFF] via-[#F8FAFF] to-[#EEF3FF] p-4 shadow-lg shadow-[#00247D]/8">
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 rounded-full bg-white p-2 text-[#00247D] shadow-sm">
+                    <Sparkles size={16} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] font-semibold tracking-[0.15em] text-slate-500 uppercase">Guest limit reached</p>
+                    <h3 className="mt-1 text-base font-semibold text-[#0B1221]">
+                      You&apos;ve used all {guestMessageLimit} complimentary messages.
+                    </h3>
+                    <p className="mt-1 text-sm text-slate-600">
+                      Create an account or sign in to keep this conversation going and save your history.
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <SignUpButton mode="modal">
+                        <button
+                          type="button"
+                          className="rounded-xl bg-[#00247D] px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#001B54]"
+                        >
+                          Create Free Account
+                        </button>
+                      </SignUpButton>
+                      <SignInButton mode="modal">
+                        <button
+                          type="button"
+                          className="rounded-xl border border-[#00247D]/20 bg-white px-4 py-2 text-xs font-semibold text-[#00247D] transition-colors hover:bg-[#00247D]/5"
+                        >
+                          Sign In
+                        </button>
+                      </SignInButton>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+            {error && !guestLimitReached ? <p className="mt-2 text-center text-xs font-medium text-[#C8102E]">{error}</p> : null}
             {!error && isSending ? (
               <p className="mt-2 text-center text-xs font-medium text-slate-500">Sending message and waiting for response...</p>
             ) : null}
-            {!session ? (
+            {!session && !guestLimitReached ? (
               <p className="mt-2 text-center text-xs font-medium text-slate-500">
-                Guest mode: {profile?.guest?.messagesRemaining ?? 10} free messages remaining. Sign in to keep chatting.
+                Guest mode: {guestMessagesRemaining} of {guestMessageLimit} messages remaining ({guestMessagesUsed} used). Sign in to keep chatting.
               </p>
             ) : null}
 
