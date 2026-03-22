@@ -13,4 +13,5 @@ public sealed class User
     public ICollection<Subscription> Subscriptions { get; set; } = new List<Subscription>();
     public ICollection<Attachment> Attachments { get; set; } = new List<Attachment>();
     public ICollection<MemoryFact> MemoryFacts { get; set; } = new List<MemoryFact>();
+    public DashboardPreference? DashboardPreference { get; set; }
 }

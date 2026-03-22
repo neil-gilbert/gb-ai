@@ -181,6 +181,11 @@ app.Use(async (context, next) =>
 app.UseAuthentication();
 app.UseMiddleware<UserProvisioningMiddleware>();
 app.UseAuthorization();
+app.Use(async (context, next) =>
+{
+    TryRewriteToStaticHtml(context, app.Environment.WebRootFileProvider);
+    await next();
+});
 app.UseDefaultFiles();
 app.UseStaticFiles(new StaticFileOptions
 {
@@ -305,6 +310,83 @@ api.MapGet("/auth/me", async (
             }
             : null
     });
+});
+
+api.MapGet("/widgets/preferences", async (
+    HttpContext httpContext,
+    HyokaDbContext db,
+    IDashboardPreferencesService dashboardPreferencesService,
+    CancellationToken ct) =>
+{
+    var user = await httpContext.RequireCurrentUserAsync(db, ct);
+    if (user.IsGuestUser())
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var preferences = await dashboardPreferencesService.GetAsync(user.Id, ct);
+    return Results.Ok(preferences);
+});
+
+api.MapPut("/widgets/preferences", async (
+    HubPreferences request,
+    HttpContext httpContext,
+    HyokaDbContext db,
+    IDashboardPreferencesService dashboardPreferencesService,
+    CancellationToken ct) =>
+{
+    var user = await httpContext.RequireCurrentUserAsync(db, ct);
+    if (user.IsGuestUser())
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var saved = await dashboardPreferencesService.SaveAsync(user.Id, request, ct);
+    return Results.Ok(saved);
+});
+
+api.MapGet("/widgets/location/search", async (
+    string q,
+    IWeatherWidgetService weatherWidgetService,
+    CancellationToken ct) =>
+{
+    var results = await weatherWidgetService.SearchLocationsAsync(q, ct);
+    return Results.Ok(results);
+});
+
+api.MapGet("/widgets/weather", async (
+    double latitude,
+    double longitude,
+    string? timezone,
+    bool refresh,
+    IWeatherWidgetService weatherWidgetService,
+    CancellationToken ct) =>
+{
+    if (latitude is < -90 or > 90 || longitude is < -180 or > 180)
+    {
+        return Results.BadRequest(new { error = "Latitude or longitude is out of range." });
+    }
+
+    var forecast = await weatherWidgetService.GetForecastAsync(latitude, longitude, timezone ?? "auto", refresh, ct);
+    return Results.Ok(forecast);
+});
+
+api.MapGet("/widgets/news", async (
+    string? locality,
+    string? principalSubdivision,
+    string? countryCode,
+    bool refresh,
+    INewsWidgetService newsWidgetService,
+    CancellationToken ct) =>
+{
+    var headlines = await newsWidgetService.GetHeadlinesAsync(
+        locality ?? string.Empty,
+        principalSubdivision ?? string.Empty,
+        countryCode ?? "GB",
+        refresh,
+        ct);
+
+    return Results.Ok(headlines);
 });
 
 api.MapGet("/models", async (HttpContext httpContext, HyokaDbContext db, IPlanService planService, CancellationToken ct) =>
@@ -1122,6 +1204,37 @@ static string BuildHoneycombHeaders(string apiKey, string dataset)
     }
 
     return string.Join(",", headers);
+}
+
+static void TryRewriteToStaticHtml(HttpContext context, Microsoft.Extensions.FileProviders.IFileProvider webRootFileProvider)
+{
+    if (!(HttpMethods.IsGet(context.Request.Method) || HttpMethods.IsHead(context.Request.Method)))
+    {
+        return;
+    }
+
+    var path = context.Request.Path.Value ?? string.Empty;
+    if (string.IsNullOrWhiteSpace(path)
+        || path == "/"
+        || path.StartsWith("/api", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWith("/health", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWith("/swagger", StringComparison.OrdinalIgnoreCase)
+        || Path.HasExtension(path))
+    {
+        return;
+    }
+
+    var htmlPath = path.TrimEnd('/') + ".html";
+    if (string.IsNullOrWhiteSpace(htmlPath) || htmlPath == ".html")
+    {
+        return;
+    }
+
+    var fileInfo = webRootFileProvider.GetFileInfo(htmlPath);
+    if (fileInfo.Exists)
+    {
+        context.Request.Path = htmlPath;
+    }
 }
 
 public partial class Program { }

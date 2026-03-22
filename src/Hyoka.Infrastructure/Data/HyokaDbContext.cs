@@ -18,6 +18,7 @@ public sealed class HyokaDbContext(DbContextOptions<HyokaDbContext> options) : D
     public DbSet<MemoryFact> MemoryFacts => Set<MemoryFact>();
     public DbSet<ChatSummary> ChatSummaries => Set<ChatSummary>();
     public DbSet<AdminAuditLog> AdminAuditLogs => Set<AdminAuditLog>();
+    public DbSet<DashboardPreference> DashboardPreferences => Set<DashboardPreference>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -106,6 +107,15 @@ public sealed class HyokaDbContext(DbContextOptions<HyokaDbContext> options) : D
         modelBuilder.Entity<AdminAuditLog>(b =>
         {
             b.HasIndex(x => x.CreatedAtUtc);
+        });
+
+        modelBuilder.Entity<DashboardPreference>(b =>
+        {
+            b.HasKey(x => x.UserId);
+            b.Property(x => x.ConfigurationJson).HasColumnType("longtext");
+            b.HasOne(x => x.User)
+                .WithOne(x => x.DashboardPreference)
+                .HasForeignKey<DashboardPreference>(x => x.UserId);
         });
     }
 }

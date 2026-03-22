@@ -18,6 +18,7 @@ public static class ServiceCollectionExtensions
         services.Configure<ProviderRuntimeOptions>(configuration.GetSection(ProviderRuntimeOptions.SectionName));
         services.Configure<StripeOptions>(configuration.GetSection(StripeOptions.SectionName));
         services.Configure<ClerkOptions>(configuration.GetSection(ClerkOptions.SectionName));
+        services.Configure<WidgetsOptions>(configuration.GetSection(WidgetsOptions.SectionName));
 
         var dbProvider = configuration["Database:Provider"];
         if (string.Equals(dbProvider, "InMemory", StringComparison.OrdinalIgnoreCase))
@@ -49,6 +50,7 @@ public static class ServiceCollectionExtensions
                     mysql => mysql.EnableRetryOnFailure()));
         }
 
+        services.AddMemoryCache();
         services.AddHttpClient();
 
         services.AddScoped<IPlanService, PlanService>();
@@ -57,6 +59,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAttachmentService, AttachmentService>();
         services.AddScoped<IProviderGateway, ProviderGateway>();
         services.AddScoped<IBillingService, StripeBillingService>();
+        services.AddScoped<IDashboardPreferencesService, DashboardPreferencesService>();
+        services.AddScoped<IWeatherWidgetService, OpenMeteoWidgetService>();
+        services.AddScoped<INewsWidgetService, GNewsWidgetService>();
 
         services.AddSingleton<IClock, SystemClock>();
         services.AddSingleton<IRpmLimiter, InMemoryRpmLimiter>();

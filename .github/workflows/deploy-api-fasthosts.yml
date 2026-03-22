@@ -98,6 +98,8 @@ jobs:
           PROVIDERS__ANTHROPIC__BASEURL: ${{ secrets.PROVIDERS__ANTHROPIC__BASEURL }}
           PROVIDERS__OPENROUTER__API_KEY: ${{ secrets.PROVIDERS__OPENROUTER__API_KEY }}
           PROVIDERS__OPENROUTER__BASEURL: ${{ secrets.PROVIDERS__OPENROUTER__BASEURL }}
+          WIDGETS__NEWS__APIKEY: ${{ secrets.WIDGETS__NEWS__APIKEY }}
+          WIDGETS__NEWS__BASEURL: ${{ secrets.WIDGETS__NEWS__BASEURL }}
           STRIPE__SECRETKEY: ${{ secrets.STRIPE__SECRETKEY }}
           STRIPE__WEBHOOKSECRET: ${{ secrets.STRIPE__WEBHOOKSECRET }}
           STRIPE__SUCCESSURL: ${{ secrets.STRIPE__SUCCESSURL }}
@@ -126,6 +128,8 @@ jobs:
             --arg anthropicBaseUrl "${PROVIDERS__ANTHROPIC__BASEURL:-https://api.anthropic.com}" \
             --arg openRouterApiKey "${PROVIDERS__OPENROUTER__API_KEY:-}" \
             --arg openRouterBaseUrl "${PROVIDERS__OPENROUTER__BASEURL:-https://openrouter.ai/api}" \
+            --arg widgetsNewsApiKey "${WIDGETS__NEWS__APIKEY:-}" \
+            --arg widgetsNewsBaseUrl "${WIDGETS__NEWS__BASEURL:-https://gnews.io/api/v4}" \
             --arg stripeSecretKey "${STRIPE__SECRETKEY:-}" \
             --arg stripeWebhookSecret "${STRIPE__WEBHOOKSECRET:-}" \
             --arg stripeSuccessUrl "${STRIPE__SUCCESSURL:-}" \
@@ -178,6 +182,13 @@ jobs:
                   BaseUrl: $openRouterBaseUrl,
                   ApiKey: $openRouterApiKey,
                   TimeoutSeconds: 120
+                }
+              },
+              Widgets: {
+                News: {
+                  BaseUrl: $widgetsNewsBaseUrl,
+                  ApiKey: $widgetsNewsApiKey,
+                  TimeoutSeconds: 30
                 }
               },
               Stripe: {

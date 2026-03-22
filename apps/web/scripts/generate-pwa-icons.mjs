@@ -8,6 +8,9 @@ const __dirname = path.dirname(__filename);
 const webRoot = path.resolve(__dirname, "..");
 const sourcePath = path.join(webRoot, "public", "LogoPwa.png");
 const iconsDir = path.join(webRoot, "public", "icons");
+const manifestPath = path.join(webRoot, "public", "manifest.webmanifest");
+const appVersion = process.env.NEXT_PUBLIC_APP_VERSION ?? "dev";
+const iconBackground = { r: 247, g: 249, b: 255, alpha: 1 };
 const safeAreaRatio = 0.76;
 
 const targets = [
@@ -35,12 +38,69 @@ async function generateIcon(size, destination) {
       width: size,
       height: size,
       channels: 4,
-      background: { r: 255, g: 255, b: 255, alpha: 0 },
+      background: iconBackground,
     },
   })
     .composite([{ input: logoBuffer, gravity: "center" }])
     .png()
     .toFile(destination);
+}
+
+function versionedAsset(assetPath) {
+  return `${assetPath}?v=${encodeURIComponent(appVersion)}`;
+}
+
+async function writeManifest() {
+  const manifest = {
+    id: "/",
+    name: "GB-AI",
+    short_name: "GB-AI",
+    description: "GB-focused AI hub with chat, local weather, and local news widgets",
+    start_url: "/",
+    scope: "/",
+    display: "standalone",
+    background_color: "#ffffff",
+    theme_color: "#ffffff",
+    icons: [
+      {
+        src: versionedAsset("/icons/icon-192.png"),
+        sizes: "192x192",
+        type: "image/png",
+        purpose: "any",
+      },
+      {
+        src: versionedAsset("/icons/icon-512.png"),
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "any",
+      },
+      {
+        src: versionedAsset("/icons/icon-maskable-512.png"),
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "maskable",
+      },
+    ],
+    shortcuts: [
+      {
+        name: "Hub",
+        short_name: "Hub",
+        url: "/",
+      },
+      {
+        name: "Chat",
+        short_name: "Chat",
+        url: "/chat",
+      },
+      {
+        name: "Widgets",
+        short_name: "Widgets",
+        url: "/widgets",
+      },
+    ],
+  };
+
+  await fs.writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
 }
 
 async function main() {
@@ -52,6 +112,9 @@ async function main() {
     await generateIcon(target.size, outputPath);
     console.log(`Generated ${target.file}`);
   }
+
+  await writeManifest();
+  console.log("Generated manifest.webmanifest");
 }
 
 main().catch((error) => {

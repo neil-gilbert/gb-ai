@@ -1,22 +1,27 @@
 const swUrl = new URL(self.location.href);
 const cacheVersion = swUrl.searchParams.get("v") || "dev";
+const versionSuffix = `?v=${encodeURIComponent(cacheVersion)}`;
 
 const SHELL_CACHE = `hyoka-shell-${cacheVersion}`;
 const STATIC_CACHE = `hyoka-static-${cacheVersion}`;
 
 const SHELL_ASSETS = [
   "/",
+  "/chat",
+  "/widgets",
   "/offline.html",
-  "/manifest.webmanifest",
-  "/icons/icon-192.png",
-  "/icons/icon-512.png",
-  "/icons/icon-maskable-512.png",
-  "/icons/apple-touch-icon.png",
+  `/manifest.webmanifest${versionSuffix}`,
+  `/icons/icon-192.png${versionSuffix}`,
+  `/icons/icon-512.png${versionSuffix}`,
+  `/icons/icon-maskable-512.png${versionSuffix}`,
+  `/icons/apple-touch-icon.png${versionSuffix}`,
 ];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(SHELL_CACHE).then((cache) => cache.addAll(SHELL_ASSETS)),
+    caches.open(SHELL_CACHE).then((cache) => cache.addAll(
+      SHELL_ASSETS.map((asset) => new Request(asset, { cache: "reload" })),
+    )),
   );
 });
 
