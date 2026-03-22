@@ -3,7 +3,7 @@
 import { useChatSession } from "@/lib/useChatSession";
 import { usePwaLifecycle } from "@/lib/usePwaLifecycle";
 import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton } from "@clerk/clerk-react";
-import { ArrowUp, Download, LoaderCircle, Menu, Plus, RefreshCw, Share, Sparkles, WifiOff, X, Zap } from "lucide-react";
+import { ArrowUp, Download, LoaderCircle, Menu, Plus, RefreshCw, Sparkles, WifiOff, X, Zap } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useId, useRef, useState } from "react";
 import type { Components } from "react-markdown";
@@ -66,6 +66,7 @@ export default function HomePage() {
   } = useChatSession();
   const {
     isInstallable,
+    isStandalone,
     promptInstall,
     updateAvailable,
     applyUpdate,
@@ -81,6 +82,7 @@ export default function HomePage() {
   const greetingText = `Good ${greeting}${firstName ? ` ${firstName}` : ""}.`;
   const isEmptyState = messages.length === 0;
   const guestLimitReached = !session && isGuestLimitReached;
+  const showHeaderActions = !isStandalone && (isOffline || isInstallable);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -235,7 +237,11 @@ export default function HomePage() {
       </aside>
 
       <main className="relative z-10 m-3 flex min-w-0 flex-1 flex-col overflow-hidden bg-white shadow-2xl shadow-slate-200/50 md:m-4 md:ml-0">
-        <header className="flex h-20 items-center justify-between border-b border-slate-100 bg-white px-4 md:px-8">
+        <header
+          className={`flex items-center border-b border-slate-100 bg-white ${
+            showHeaderActions ? "h-20 justify-between px-4 md:px-8" : "h-14 px-4 md:hidden"
+          }`}
+        >
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -248,34 +254,29 @@ export default function HomePage() {
               <Menu size={16} />
             </button>
           </div>
-          <div className="flex items-center gap-3">
-            {isOffline ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-semibold tracking-wide text-amber-700 uppercase">
-                <WifiOff size={12} />
-                <span className="hidden sm:inline">Offline mode: browsing only</span>
-                <span className="sm:hidden">Offline</span>
-              </span>
-            ) : null}
-            {isInstallable ? (
-              <button
-                type="button"
-                onClick={() => {
-                  void promptInstall();
-                }}
-                className="inline-flex items-center gap-1.5 rounded-full border border-[#00247D]/20 bg-white px-3 py-1.5 text-xs font-semibold text-[#00247D] transition-colors hover:bg-[#00247D]/5"
-              >
-                <Download size={14} />
-                <span>Install App</span>
-              </button>
-            ) : null}
-            <button
-              type="button"
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-slate-500 shadow-sm transition-colors hover:text-[#00247D]"
-              aria-label="Share"
-            >
-              <Share size={16} />
-            </button>
-          </div>
+          {showHeaderActions ? (
+            <div className="flex items-center gap-3">
+              {isOffline ? (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-semibold tracking-wide text-amber-700 uppercase">
+                  <WifiOff size={12} />
+                  <span className="hidden sm:inline">Offline mode: browsing only</span>
+                  <span className="sm:hidden">Offline</span>
+                </span>
+              ) : null}
+              {isInstallable ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    void promptInstall();
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-[#00247D]/20 bg-white px-3 py-1.5 text-xs font-semibold text-[#00247D] transition-colors hover:bg-[#00247D]/5"
+                >
+                  <Download size={14} />
+                  <span>Install App</span>
+                </button>
+              ) : null}
+            </div>
+          ) : null}
         </header>
 
         <div className="flex-1 overflow-y-auto px-4 py-6 md:py-8 scroll-smooth">

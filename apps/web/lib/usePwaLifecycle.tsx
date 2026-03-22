@@ -18,6 +18,10 @@ type BeforeInstallPromptEvent = Event & {
   }>;
 };
 
+type NavigatorWithStandalone = Navigator & {
+  standalone?: boolean;
+};
+
 declare global {
   interface WindowEventMap {
     beforeinstallprompt: BeforeInstallPromptEvent;
@@ -26,6 +30,7 @@ declare global {
 
 type PwaLifecycleValue = {
   isInstallable: boolean;
+  isStandalone: boolean;
   promptInstall: () => Promise<void>;
   updateAvailable: boolean;
   applyUpdate: () => void;
@@ -37,6 +42,7 @@ const noop = () => {};
 
 const PwaLifecycleContext = createContext<PwaLifecycleValue>({
   isInstallable: false,
+  isStandalone: false,
   promptInstall: noopAsync,
   updateAvailable: false,
   applyUpdate: noop,
@@ -64,6 +70,7 @@ function useProvidePwaLifecycle(): PwaLifecycleValue {
   const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -89,6 +96,12 @@ function useProvidePwaLifecycle(): PwaLifecycleValue {
       return;
     }
 
+    const displayModeMediaQuery = window.matchMedia("(display-mode: standalone)");
+    const syncStandaloneState = (matches = displayModeMediaQuery.matches) => {
+      const iosStandalone = Boolean((window.navigator as NavigatorWithStandalone).standalone);
+      setIsStandalone(matches || iosStandalone);
+    };
+
     const handleBeforeInstallPrompt = (event: BeforeInstallPromptEvent) => {
       event.preventDefault();
       setDeferredInstallPrompt(event);
@@ -96,14 +109,33 @@ function useProvidePwaLifecycle(): PwaLifecycleValue {
 
     const handleAppInstalled = () => {
       setDeferredInstallPrompt(null);
+      syncStandaloneState(true);
     };
+
+    const handleDisplayModeChange = (event: MediaQueryListEvent) => {
+      syncStandaloneState(event.matches);
+    };
+
+    syncStandaloneState();
 
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
     window.addEventListener("appinstalled", handleAppInstalled);
 
+    if (typeof displayModeMediaQuery.addEventListener === "function") {
+      displayModeMediaQuery.addEventListener("change", handleDisplayModeChange);
+    } else {
+      displayModeMediaQuery.addListener(handleDisplayModeChange);
+    }
+
     return () => {
       window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
       window.removeEventListener("appinstalled", handleAppInstalled);
+
+      if (typeof displayModeMediaQuery.removeEventListener === "function") {
+        displayModeMediaQuery.removeEventListener("change", handleDisplayModeChange);
+      } else {
+        displayModeMediaQuery.removeListener(handleDisplayModeChange);
+      }
     };
   }, []);
 
@@ -211,11 +243,12 @@ function useProvidePwaLifecycle(): PwaLifecycleValue {
   return useMemo(
     () => ({
       isInstallable: Boolean(deferredInstallPrompt),
+      isStandalone,
       promptInstall,
       updateAvailable,
       applyUpdate,
       isOffline,
     }),
-    [applyUpdate, deferredInstallPrompt, isOffline, promptInstall, updateAvailable],
+    [applyUpdate, deferredInstallPrompt, isOffline, isStandalone, promptInstall, updateAvailable],
   );
 }
