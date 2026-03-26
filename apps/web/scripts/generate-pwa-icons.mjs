@@ -93,8 +93,8 @@ async function writeManifest() {
         url: "/chat",
       },
       {
-        name: "Widgets",
-        short_name: "Widgets",
+        name: "Setup",
+        short_name: "Setup",
         url: "/widgets",
       },
     ],

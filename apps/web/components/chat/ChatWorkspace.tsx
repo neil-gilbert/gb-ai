@@ -8,11 +8,11 @@ import {
   ArrowLeft,
   ArrowUp,
   Download,
-  LayoutGrid,
   LoaderCircle,
   Menu,
   Plus,
   RefreshCw,
+  Settings2,
   Share,
   Sparkles,
   WifiOff,
@@ -184,8 +184,8 @@ export default function ChatWorkspace({ initialChatId }: ChatWorkspaceProps) {
               href="/widgets"
               className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#00247D]/15 bg-white px-3 py-2 text-xs font-semibold text-[#00247D] transition-colors hover:bg-[#00247D]/5"
             >
-              <LayoutGrid size={14} />
-              <span>Widgets</span>
+              <Settings2 size={14} />
+              <span>Setup</span>
             </Link>
           </div>
         </div>
@@ -279,8 +279,8 @@ export default function ChatWorkspace({ initialChatId }: ChatWorkspaceProps) {
                 href="/widgets"
                 className="inline-flex items-center gap-2 rounded-full border border-[#00247D]/10 bg-[#F8FAFF] px-3 py-1.5 text-xs font-semibold text-[#00247D] transition-colors hover:bg-[#EEF3FF]"
               >
-                <LayoutGrid size={13} />
-                <span>Widgets</span>
+                <Settings2 size={13} />
+                <span>Setup</span>
               </Link>
             </div>
           </div>

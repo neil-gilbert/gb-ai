@@ -1,8 +1,8 @@
 "use client";
 
-import { ArrowDown, ArrowLeft, ArrowUp, LoaderCircle, MapPin, Search, Sparkles, Trash2 } from "lucide-react";
-import Link from "next/link";
+import { ArrowDown, ArrowUp, LoaderCircle, MapPin, Search, Settings2, Sparkles, Trash2 } from "lucide-react";
 import { useDeferredValue, useEffect, useState } from "react";
+import HubShell from "@/components/layout/HubShell";
 import { apiFetch } from "@/lib/api";
 import { useHubPreferences } from "@/lib/useHubPreferences";
 import type { WidgetLocationPreference, WidgetLocationSearchResult } from "@/lib/types";
@@ -27,6 +27,7 @@ export default function WidgetManagerPage() {
   const [searching, setSearching] = useState(false);
   const [locationBusy, setLocationBusy] = useState(false);
   const [locationNotice, setLocationNotice] = useState<string | null>(null);
+  const widgetCountLabel = `${preferences.orderedWidgetKeys.length} ${preferences.orderedWidgetKeys.length === 1 ? "widget" : "widgets"} active`;
 
   useEffect(() => {
     if (deferredQuery.length < 2) {
@@ -106,32 +107,32 @@ export default function WidgetManagerPage() {
   }
 
   return (
-    <main className="min-h-dvh bg-[radial-gradient(circle_at_top_left,rgba(207,20,43,0.08),transparent_34%),linear-gradient(180deg,#f5f7ff_0%,#eaf0ff_100%)] px-4 py-4 text-[#102158] md:px-6 md:py-6">
+    <HubShell
+      sectionTitle="Setup"
+      sectionDescription="Configure what appears on the homepage and which local area powers the local cards."
+    >
       <div className="mx-auto flex max-w-6xl flex-col gap-5">
         <header className="rounded-[2rem] border border-[#C2CFEC] bg-white/88 px-5 py-5 shadow-[0_18px_50px_rgba(8,21,66,0.12)] backdrop-blur md:px-7">
-          <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <p className="text-[11px] font-semibold tracking-[0.22em] text-[#4e618f] uppercase">Widget Shelf</p>
-              <h1 className="mt-2 font-serif text-3xl text-[#081542] md:text-4xl">Choose what lives on the hub</h1>
+              <p className="text-[11px] font-semibold tracking-[0.22em] text-[#4e618f] uppercase">Hub Setup</p>
+              <h1 className="mt-2 font-serif text-3xl text-[#081542] md:text-4xl">Configure the homepage away from the homepage</h1>
               <p className="mt-3 max-w-2xl text-sm text-[#4e618f] md:text-base">
-                Add or remove cards, reorder them, and set the local area used by weather and news.
+                Choose which modules are pinned to the hub, reorder them, and decide which local area powers weather and news.
               </p>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Link
-                href="/"
-                className="inline-flex items-center gap-2 rounded-full border border-[#00247D]/15 bg-white px-4 py-2 text-sm font-semibold text-[#00247D] transition-colors hover:bg-[#F4F7FF]"
-              >
-                <ArrowLeft size={15} />
-                <span>Back to hub</span>
-              </Link>
-              <Link
-                href="/chat"
-                className="inline-flex items-center gap-2 rounded-full bg-[#00247D] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#001B54]"
-              >
-                <Sparkles size={15} />
-                <span>Open chat</span>
-              </Link>
+            <div className="max-w-sm rounded-[1.6rem] border border-[#00247D]/10 bg-[#F8FAFF] p-4">
+              <div className="flex items-start gap-3">
+                <div className="rounded-2xl bg-white p-3 text-[#00247D] shadow-sm">
+                  <Settings2 size={18} />
+                </div>
+                <div>
+                  <p className="text-[11px] font-semibold tracking-[0.18em] text-[#4e618f] uppercase">Live status</p>
+                  <p className="mt-2 text-sm leading-6 text-[#4e618f]">
+                    {widgetCountLabel}. {preferences.location?.label || "No local area saved yet."}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </header>
@@ -154,8 +155,8 @@ export default function WidgetManagerPage() {
           <div className="rounded-[1.75rem] border border-[#C2CFEC] bg-white/92 p-5 shadow-[0_16px_44px_rgba(8,21,66,0.10)]">
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div>
-                <p className="text-[11px] font-semibold tracking-[0.18em] text-[#4e618f] uppercase">Widgets</p>
-                <h2 className="mt-2 font-serif text-2xl text-[#081542]">Active modules</h2>
+                <p className="text-[11px] font-semibold tracking-[0.18em] text-[#4e618f] uppercase">Modules</p>
+                <h2 className="mt-2 font-serif text-2xl text-[#081542]">Homepage cards</h2>
               </div>
               <button
                 type="button"
@@ -254,7 +255,7 @@ export default function WidgetManagerPage() {
             <p className="text-[11px] font-semibold tracking-[0.18em] text-[#4e618f] uppercase">Local area</p>
             <h2 className="mt-2 font-serif text-2xl text-[#081542]">Weather and news location</h2>
             <p className="mt-3 text-sm text-[#4e618f]">
-              Browser location stays private to this session flow. Signed-in users keep the final area selection on their account.
+              Keep location changes in setup so the homepage stays clean. Signed-in users keep the final area on their account.
             </p>
 
             <div className="mt-5 rounded-2xl border border-[#00247D]/12 bg-[#F8FAFF] p-4">
@@ -346,6 +347,6 @@ export default function WidgetManagerPage() {
           </div>
         </section>
       </div>
-    </main>
+    </HubShell>
   );
 }

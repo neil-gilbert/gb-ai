@@ -7,12 +7,12 @@ import {
   CloudRain,
   CloudSnow,
   CloudSun,
-  LayoutGrid,
   LoaderCircle,
   MapPin,
   Newspaper,
   Plus,
   RefreshCw,
+  Settings2,
   Sparkles,
   SunMedium,
   Wind,
@@ -20,6 +20,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import HubShell from "@/components/layout/HubShell";
 import { apiFetch } from "@/lib/api";
 import { buildGreetingText } from "@/lib/greeting";
 import { useHubPreferences } from "@/lib/useHubPreferences";
@@ -30,8 +31,7 @@ import type {
   WidgetLocationPreference,
   WeatherWidgetData,
 } from "@/lib/types";
-import { resolveApproximateLocation, resolveBrowserLocation } from "@/lib/widgets/location";
-import { recommendedWidgetOrder, widgetRegistryMap } from "@/lib/widgets/registry";
+import { widgetRegistryMap } from "@/lib/widgets/registry";
 
 type HubProfileResponse = {
   user: {
@@ -43,25 +43,18 @@ type HubProfileResponse = {
 export default function HubDashboard() {
   const router = useRouter();
   const { isLoaded, isSignedIn, getToken } = useAuth();
-  const {
-    preferences,
-    isSaving,
-    error: preferencesError,
-    setLocation,
-    applyRecommendedWidgets,
-  } = useHubPreferences();
+  const { preferences, error: preferencesError } = useHubPreferences();
   const [profile, setProfile] = useState<HubProfileResponse | null>(null);
   const [recentChats, setRecentChats] = useState<ChatSummary[]>([]);
   const [isHubLoading, setIsHubLoading] = useState(true);
   const [hubError, setHubError] = useState<string | null>(null);
   const [isCreatingChat, setIsCreatingChat] = useState(false);
-  const [isResolvingLocation, setIsResolvingLocation] = useState(false);
-  const [locationNotice, setLocationNotice] = useState<string | null>(null);
   const greetingText = useMemo(
     () => buildGreetingText(profile?.user.isGuest ? undefined : profile?.user.email),
     [profile?.user.email, profile?.user.isGuest],
   );
   const activeWidgets = preferences.orderedWidgetKeys.filter((key) => widgetRegistryMap.has(key));
+  const widgetStatusLabel = `${activeWidgets.length} ${activeWidgets.length === 1 ? "live widget" : "live widgets"}`;
 
   useEffect(() => {
     if (!isLoaded) {
@@ -131,42 +124,28 @@ export default function HubDashboard() {
     }
   }, [getToken, isSignedIn, router]);
 
-  const handleCurrentLocation = useCallback(async () => {
-    setIsResolvingLocation(true);
-    setLocationNotice(null);
-    setHubError(null);
-
-    try {
-      const location = await resolveBrowserLocation();
-      await setLocation(location);
-    } catch (err) {
-      try {
-        const approximateLocation = await resolveApproximateLocation();
-        await setLocation(approximateLocation);
-        setLocationNotice("Using an approximate area because browser location was unavailable.");
-      } catch {
-        setHubError(err instanceof Error ? err.message : "Could not determine your area.");
-      }
-    } finally {
-      setIsResolvingLocation(false);
-    }
-  }, [setLocation]);
-
   return (
-    <main className="min-h-dvh bg-[radial-gradient(circle_at_top_left,rgba(207,20,43,0.08),transparent_34%),linear-gradient(180deg,#f5f7ff_0%,#eaf0ff_100%)] px-4 py-4 text-[#102158] md:px-6 md:py-6">
+    <HubShell
+      sectionTitle="Hub"
+      sectionDescription="Live widgets and chat stay on the front page. Setup now lives separately in the left menu."
+    >
       <div className="mx-auto flex max-w-7xl flex-col gap-5">
         <header className="rounded-[2rem] border border-[#C2CFEC] bg-white/88 px-5 py-5 shadow-[0_18px_50px_rgba(8,21,66,0.12)] backdrop-blur md:px-7">
-          <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <p className="text-[11px] font-semibold tracking-[0.22em] text-[#4e618f] uppercase">GB-AI Hub</p>
+              <p className="text-[11px] font-semibold tracking-[0.22em] text-[#4e618f] uppercase">GB-AI Home</p>
               <h1 className="mt-2 font-serif text-3xl text-[#081542] md:text-4xl">{greetingText}</h1>
               <p className="mt-3 max-w-2xl text-sm text-[#4e618f] md:text-base">
-                Turn the home screen into a local briefing board with weather, headlines, and instant access to chat.
+                Your front page is now reserved for the live board: local widgets on one side, your conversation launcher on the other.
               </p>
               <div className="mt-4 flex flex-wrap items-center gap-2">
                 <span className="inline-flex items-center gap-2 rounded-full border border-[#00247D]/10 bg-[#F8FAFF] px-3 py-1 text-xs font-semibold text-[#00247D]">
                   <MapPin size={13} />
-                  <span>{preferences.location?.label || "No area selected yet"}</span>
+                  <span>{preferences.location?.label || "Area not set"}</span>
+                </span>
+                <span className="inline-flex items-center gap-2 rounded-full border border-[#00247D]/10 bg-[#F8FAFF] px-3 py-1 text-xs font-semibold text-[#00247D]">
+                  <Sparkles size={13} />
+                  <span>{widgetStatusLabel}</span>
                 </span>
                 {preferences.location?.source === "ip" ? (
                   <span className="rounded-full bg-amber-50 px-3 py-1 text-[11px] font-semibold text-amber-700">
@@ -176,26 +155,30 @@ export default function HubDashboard() {
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-2">
+            <div className="max-w-sm rounded-[1.6rem] border border-[#00247D]/10 bg-[#F8FAFF] p-4">
+              <div className="flex items-start gap-3">
+                <div className="rounded-2xl bg-white p-3 text-[#00247D] shadow-sm">
+                  <Settings2 size={18} />
+                </div>
+                <div>
+                  <p className="text-[11px] font-semibold tracking-[0.18em] text-[#4e618f] uppercase">Setup moved</p>
+                  <p className="mt-2 text-sm leading-6 text-[#4e618f]">
+                    Widget selection, ordering, and local area settings now live in the dedicated setup area from the left menu.
+                  </p>
+                </div>
+              </div>
               <Link
                 href="/chat"
-                className="inline-flex items-center gap-2 rounded-full bg-[#00247D] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#001B54]"
+                className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#00247D] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#001B54]"
               >
                 <Sparkles size={15} />
-                <span>Open Chat</span>
-              </Link>
-              <Link
-                href="/widgets"
-                className="inline-flex items-center gap-2 rounded-full border border-[#00247D]/15 bg-white px-4 py-2 text-sm font-semibold text-[#00247D] transition-colors hover:bg-[#F4F7FF]"
-              >
-                <LayoutGrid size={15} />
-                <span>Manage Widgets</span>
+                <span>Open chat</span>
               </Link>
             </div>
           </div>
         </header>
 
-        {(hubError || preferencesError || locationNotice) ? (
+        {(hubError || preferencesError) ? (
           <div className="grid gap-3">
             {hubError ? (
               <div className="rounded-2xl border border-[#C8102E]/20 bg-white px-4 py-3 text-sm text-[#A90F24] shadow-sm">
@@ -205,11 +188,6 @@ export default function HubDashboard() {
             {preferencesError ? (
               <div className="rounded-2xl border border-[#C8102E]/20 bg-white px-4 py-3 text-sm text-[#A90F24] shadow-sm">
                 {preferencesError}
-              </div>
-            ) : null}
-            {locationNotice ? (
-              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 shadow-sm">
-                {locationNotice}
               </div>
             ) : null}
           </div>
@@ -224,15 +202,7 @@ export default function HubDashboard() {
           />
 
           {activeWidgets.length === 0 ? (
-            <OnboardingCard
-              isBusy={isSaving || isResolvingLocation}
-              onApplyRecommended={() => {
-                void applyRecommendedWidgets().catch(() => {});
-              }}
-              onUseLocation={() => {
-                void handleCurrentLocation().catch(() => {});
-              }}
-            />
+            <OnboardingCard hasLocation={Boolean(preferences.location)} />
           ) : (
             activeWidgets.map((widgetKey) => {
               if (!preferences.location) {
@@ -251,111 +221,8 @@ export default function HubDashboard() {
             })
           )}
         </section>
-
-        <section className="grid gap-4 lg:grid-cols-[1.6fr_1fr]">
-          <div className="rounded-[1.75rem] border border-[#C2CFEC] bg-white/92 p-5 shadow-[0_16px_44px_rgba(8,21,66,0.10)]">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[11px] font-semibold tracking-[0.18em] text-[#4e618f] uppercase">Current layout</p>
-                <h2 className="mt-2 font-serif text-2xl text-[#081542]">Your dashboard modules</h2>
-              </div>
-              <Link
-                href="/widgets"
-                className="inline-flex items-center gap-2 rounded-full border border-[#00247D]/15 px-3 py-2 text-xs font-semibold text-[#00247D] transition-colors hover:bg-[#F4F7FF]"
-              >
-                <LayoutGrid size={14} />
-                <span>Edit layout</span>
-              </Link>
-            </div>
-
-            <div className="mt-5 grid gap-3 md:grid-cols-2">
-              {recommendedWidgetOrder.map((widgetKey) => {
-                const widget = widgetRegistryMap.get(widgetKey);
-                if (!widget) {
-                  return null;
-                }
-
-                const Icon = widget.icon;
-                const isActive = activeWidgets.includes(widgetKey);
-
-                return (
-                  <div
-                    key={widgetKey}
-                    className={`rounded-2xl border px-4 py-4 ${
-                      isActive
-                        ? "border-[#00247D]/18 bg-[#F8FAFF]"
-                        : "border-dashed border-[#C2CFEC] bg-white"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <div className="rounded-2xl bg-white p-3 text-[#00247D] shadow-sm">
-                          <Icon size={18} />
-                        </div>
-                        <div>
-                          <h3 className="text-sm font-semibold text-[#081542]">{widget.title}</h3>
-                          <p className="mt-1 text-sm text-[#4e618f]">{widget.description}</p>
-                        </div>
-                      </div>
-                      <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${
-                        isActive ? "bg-[#00247D] text-white" : "bg-slate-100 text-slate-500"
-                      }`}>
-                        {isActive ? "Live" : "Off"}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="rounded-[1.75rem] border border-[#C2CFEC] bg-white/92 p-5 shadow-[0_16px_44px_rgba(8,21,66,0.10)]">
-            <p className="text-[11px] font-semibold tracking-[0.18em] text-[#4e618f] uppercase">Local setup</p>
-            <h2 className="mt-2 font-serif text-2xl text-[#081542]">Area selection</h2>
-            <p className="mt-3 text-sm text-[#4e618f]">
-              Weather and news cards both depend on a chosen area. You can keep an exact location, or let the hub fall back to an approximate one.
-            </p>
-
-            <div className="mt-5 rounded-2xl border border-[#00247D]/12 bg-[#F8FAFF] p-4">
-              <div className="flex items-center gap-3">
-                <div className="rounded-2xl bg-white p-3 text-[#00247D] shadow-sm">
-                  <MapPin size={18} />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-[#081542]">{preferences.location?.label || "Area not set"}</p>
-                  <p className="mt-1 text-xs text-[#4e618f]">
-                    {preferences.location
-                      ? `Source: ${preferences.location.source}`
-                      : "Choose an area to unlock the local widgets."}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-4 grid gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  void handleCurrentLocation().catch(() => {});
-                }}
-                disabled={isResolvingLocation || isSaving}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#00247D] px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#001B54] disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isResolvingLocation ? <LoaderCircle size={16} className="animate-spin" /> : <MapPin size={16} />}
-                <span>Use my current area</span>
-              </button>
-              <Link
-                href="/widgets"
-                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[#00247D]/15 px-4 py-3 text-sm font-semibold text-[#00247D] transition-colors hover:bg-[#F4F7FF]"
-              >
-                <Plus size={16} />
-                <span>Search manually</span>
-              </Link>
-            </div>
-          </div>
-        </section>
       </div>
-    </main>
+    </HubShell>
   );
 }
 
@@ -438,46 +305,27 @@ function ChatLauncherCard({
 }
 
 function OnboardingCard({
-  isBusy,
-  onApplyRecommended,
-  onUseLocation,
+  hasLocation,
 }: {
-  isBusy: boolean;
-  onApplyRecommended: () => void;
-  onUseLocation: () => void;
+  hasLocation: boolean;
 }) {
   return (
     <section className="rounded-[1.75rem] border border-dashed border-[#C2CFEC] bg-white/92 p-6 shadow-[0_14px_34px_rgba(8,21,66,0.08)] lg:col-span-2">
-      <p className="text-[11px] font-semibold tracking-[0.18em] text-[#4e618f] uppercase">Get started</p>
-      <h2 className="mt-2 font-serif text-2xl text-[#081542]">No widgets are active yet</h2>
+      <p className="text-[11px] font-semibold tracking-[0.18em] text-[#4e618f] uppercase">Clean slate</p>
+      <h2 className="mt-2 font-serif text-2xl text-[#081542]">No widgets are pinned to the hub yet</h2>
       <p className="mt-3 max-w-xl text-sm text-[#4e618f]">
-        Turn on the recommended local stack to pin weather and headlines to the home screen, or go straight to the widget shelf for a more manual setup.
+        Keep the homepage focused. Use Setup from the left menu to choose the widgets you want here and to set the local area they should use.
+      </p>
+      <p className="mt-4 text-xs font-medium text-[#4e618f]">
+        {hasLocation ? "Your local area is already saved." : "Your local area will be chosen in Setup as well."}
       </p>
       <div className="mt-5 flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={onApplyRecommended}
-          disabled={isBusy}
-          className="inline-flex items-center gap-2 rounded-full bg-[#00247D] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#001B54] disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {isBusy ? <LoaderCircle size={15} className="animate-spin" /> : <Sparkles size={15} />}
-          <span>Add recommended starters</span>
-        </button>
-        <button
-          type="button"
-          onClick={onUseLocation}
-          disabled={isBusy}
-          className="inline-flex items-center gap-2 rounded-full border border-[#00247D]/15 bg-white px-4 py-2 text-sm font-semibold text-[#00247D] transition-colors hover:bg-[#F4F7FF] disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          <MapPin size={15} />
-          <span>Use my location now</span>
-        </button>
         <Link
           href="/widgets"
-          className="inline-flex items-center gap-2 rounded-full border border-[#00247D]/15 bg-white px-4 py-2 text-sm font-semibold text-[#00247D] transition-colors hover:bg-[#F4F7FF]"
+          className="inline-flex items-center gap-2 rounded-full bg-[#00247D] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#001B54]"
         >
-          <LayoutGrid size={15} />
-          <span>Open widget shelf</span>
+          <Settings2 size={15} />
+          <span>Open setup</span>
         </Link>
       </div>
     </section>
@@ -500,15 +348,15 @@ function LocationRequiredCard({ widgetKey }: { widgetKey: WidgetKey }) {
         </div>
         <div>
           <p className="text-sm font-semibold text-[#081542]">{widget.title}</p>
-          <p className="mt-1 text-sm text-[#4e618f]">Choose a local area before this widget can render.</p>
+          <p className="mt-1 text-sm text-[#4e618f]">This widget needs a local area. Set it in Setup before the card can render.</p>
         </div>
       </div>
       <Link
         href="/widgets"
         className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#00247D] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#001B54]"
       >
-        <MapPin size={15} />
-        <span>Set location</span>
+        <Settings2 size={15} />
+        <span>Open setup</span>
       </Link>
     </section>
   );
