@@ -2,6 +2,7 @@ import { useAuth, useUser } from "@clerk/clerk-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch, buildAuthHeaders, toApiUrl } from "@/lib/api";
 import type { ChatMessage, ChatSummary, ModelEntry } from "@/lib/types";
+import { useHubPreferences } from "@/lib/useHubPreferences";
 
 export const ACCEPTED_MIME_TYPES = new Set([
   "image/png",
@@ -81,6 +82,7 @@ function streamChunks(raw: string): string[] {
 export function useChatSession() {
   const { isLoaded: isAuthLoaded, isSignedIn, userId, getToken } = useAuth();
   const { user } = useUser();
+  const { preferences } = useHubPreferences();
   const signedIn = Boolean(isSignedIn);
 
   const [searchValue, setSearchValue] = useState("");
@@ -426,6 +428,7 @@ export function useChatSession() {
           modelKey: selectedModel,
           text: trimmedText,
           attachmentIds,
+          location: preferences.location,
         }),
       });
 

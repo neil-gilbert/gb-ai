@@ -1,3 +1,5 @@
+using Hyoka.Application.Models;
+
 namespace Hyoka.Api.Contracts;
 
 public sealed class CreateChatRequest
@@ -10,6 +12,7 @@ public sealed class SendMessageRequest
     public required string ModelKey { get; init; }
     public required string Text { get; init; }
     public IReadOnlyList<Guid> AttachmentIds { get; init; } = [];
+    public WidgetLocationPreference? Location { get; init; }
 }
 
 public sealed class PresignAttachmentRequest

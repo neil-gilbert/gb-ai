@@ -4,7 +4,7 @@ namespace Hyoka.Application.Abstractions;
 
 public interface IMemoryService
 {
-    Task<string> BuildSystemContextAsync(Guid userId, Guid chatId, CancellationToken ct);
+    Task<string> BuildSystemContextAsync(Guid userId, Guid chatId, WidgetLocationPreference? location, CancellationToken ct);
     Task UpsertConversationSummaryAsync(Guid chatId, string conversationText, CancellationToken ct);
     Task ExtractAndUpsertFactsAsync(Guid userId, string userMessage, CancellationToken ct);
 }

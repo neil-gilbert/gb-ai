@@ -1,6 +1,9 @@
 using System.Net;
+using System.Net.Http.Json;
 using Hyoka.Application.Abstractions;
 using Hyoka.Application.Models;
+using Hyoka.Api.Contracts;
+using Hyoka.Domain.Entities;
 using Hyoka.Infrastructure.Data;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -39,6 +42,46 @@ public sealed class ApiSmokeTests : IClassFixture<HyokaApiFactory>
         Assert.Contains("integration@example.com", json);
         Assert.Contains("Free", json);
     }
+
+    [Fact]
+    public async Task ChatStream_IncludesLocationContext_WhenSentByClient()
+    {
+        var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("x-dev-user-id", "integration-user");
+        client.DefaultRequestHeaders.Add("x-dev-email", "integration@example.com");
+
+        var gateway = _factory.Services.GetRequiredService<HyokaApiFactory.FakeProviderGateway>();
+        gateway.Reset();
+
+        var createResponse = await client.PostAsJsonAsync("/api/v1/chats", new CreateChatRequest());
+        createResponse.EnsureSuccessStatusCode();
+        var chat = await createResponse.Content.ReadFromJsonAsync<HyokaApiFactory.CreatedChatResponse>();
+        Assert.NotNull(chat);
+
+        var streamResponse = await client.PostAsJsonAsync($"/api/v1/chats/{chat!.Id}/messages/stream", new
+        {
+            modelKey = "gpt-4o-mini",
+            text = "What should I do nearby today?",
+            attachmentIds = Array.Empty<Guid>(),
+            location = new
+            {
+                source = "manual",
+                label = "Leeds, England, GB",
+                latitude = 53.7997,
+                longitude = -1.5492,
+                locality = "Leeds",
+                principalSubdivision = "England",
+                countryCode = "GB",
+                timezone = "Europe/London"
+            }
+        });
+
+        Assert.Equal(HttpStatusCode.OK, streamResponse.StatusCode);
+        var payload = await streamResponse.Content.ReadAsStringAsync();
+        Assert.Contains("assistant.completed", payload);
+        Assert.Contains("Leeds, England, GB", gateway.LastSystemPrompt);
+        Assert.Contains("Use this location as the user's current area", gateway.LastSystemPrompt);
+    }
 }
 
 public sealed class HyokaApiFactory : WebApplicationFactory<Program>
@@ -53,14 +96,43 @@ public sealed class HyokaApiFactory : WebApplicationFactory<Program>
         {
             services.RemoveAll<IWeatherWidgetService>();
             services.RemoveAll<INewsWidgetService>();
+            services.RemoveAll<IProviderGateway>();
             services.AddScoped<IWeatherWidgetService, FakeWeatherWidgetService>();
             services.AddScoped<INewsWidgetService, FakeNewsWidgetService>();
+            services.AddSingleton<FakeProviderGateway>();
+            services.AddSingleton<IProviderGateway>(sp => sp.GetRequiredService<FakeProviderGateway>());
 
             using var scope = services.BuildServiceProvider().CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<HyokaDbContext>();
             db.Database.EnsureDeleted();
             DbSeeder.SeedAsync(db).GetAwaiter().GetResult();
         });
+    }
+
+    public sealed class FakeProviderGateway : IProviderGateway
+    {
+        public string LastSystemPrompt { get; private set; } = string.Empty;
+
+        public void Reset()
+        {
+            LastSystemPrompt = string.Empty;
+        }
+
+        public Task<ProviderChatResult> CompleteWithFallbackAsync(
+            ModelCatalogEntry primaryModel,
+            ModelCatalogEntry? fallbackModel,
+            ProviderChatRequest request,
+            CancellationToken ct)
+        {
+            LastSystemPrompt = request.SystemPrompt ?? string.Empty;
+
+            return Task.FromResult(new ProviderChatResult
+            {
+                ResponseText = "Integration test response",
+                InputTokens = 12,
+                OutputTokens = 24
+            });
+        }
     }
 
     private sealed class FakeWeatherWidgetService : IWeatherWidgetService
@@ -134,5 +206,10 @@ public sealed class HyokaApiFactory : WebApplicationFactory<Program>
                 ]
             });
         }
+    }
+
+    public sealed class CreatedChatResponse
+    {
+        public Guid Id { get; init; }
     }
 }

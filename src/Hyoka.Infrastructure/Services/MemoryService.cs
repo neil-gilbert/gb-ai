@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.RegularExpressions;
 using Hyoka.Application.Abstractions;
+using Hyoka.Application.Models;
 using Hyoka.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -13,7 +14,7 @@ public sealed class MemoryService(HyokaDbContext db, IClock clock) : IMemoryServ
     private const string PromptFileName = "chat-personality-and-guardrails.md";
     private readonly string baseSystemPrompt = LoadBaseSystemPrompt();
 
-    public async Task<string> BuildSystemContextAsync(Guid userId, Guid chatId, CancellationToken ct)
+    public async Task<string> BuildSystemContextAsync(Guid userId, Guid chatId, WidgetLocationPreference? location, CancellationToken ct)
     {
         var facts = await db.MemoryFacts
             .Where(x => x.UserId == userId)
@@ -34,6 +35,22 @@ public sealed class MemoryService(HyokaDbContext db, IClock clock) : IMemoryServ
             {
                 sb.AppendLine($"- {fact.Key}: {fact.Value}");
             }
+            sb.AppendLine();
+        }
+
+        var normalizedLocation = NormalizeLocation(location);
+        if (normalizedLocation is not null)
+        {
+            sb.AppendLine("User location context:");
+            sb.AppendLine($"- Label: {normalizedLocation.Label}");
+            sb.AppendLine($"- Locality: {normalizedLocation.Locality}");
+            sb.AppendLine($"- Region: {normalizedLocation.PrincipalSubdivision}");
+            sb.AppendLine($"- Country code: {normalizedLocation.CountryCode}");
+            sb.AppendLine($"- Timezone: {normalizedLocation.Timezone}");
+            sb.AppendLine($"- Coordinates: {normalizedLocation.Latitude:F4}, {normalizedLocation.Longitude:F4}");
+            sb.AppendLine($"- Precision: {(normalizedLocation.Source == "ip" ? "approximate" : "user-selected")}");
+            sb.AppendLine("Use this location as the user's current area when location is relevant. Do not claim more precision than provided.");
+            sb.AppendLine();
         }
 
         if (!string.IsNullOrWhiteSpace(summary?.SummaryText))
@@ -73,6 +90,62 @@ public sealed class MemoryService(HyokaDbContext db, IClock clock) : IMemoryServ
         Be warm, polite, and clear. Keep responses friendly and respectful.
         Refuse hateful or abusive language and invite the user to rephrase respectfully.
         """;
+    }
+
+    private static WidgetLocationPreference? NormalizeLocation(WidgetLocationPreference? location)
+    {
+        if (location is null
+            || double.IsNaN(location.Latitude)
+            || double.IsInfinity(location.Latitude)
+            || double.IsNaN(location.Longitude)
+            || double.IsInfinity(location.Longitude)
+            || location.Latitude < -90
+            || location.Latitude > 90
+            || location.Longitude < -180
+            || location.Longitude > 180)
+        {
+            return null;
+        }
+
+        var source = location.Source.Trim().ToLowerInvariant();
+        if (source is not ("browser" or "ip" or "manual"))
+        {
+            source = "manual";
+        }
+
+        var locality = Clean(location.Locality, 80);
+        var subdivision = Clean(location.PrincipalSubdivision, 80);
+        var countryCode = Clean(location.CountryCode, 8).ToUpperInvariant();
+        var label = Clean(location.Label, 160);
+
+        if (string.IsNullOrWhiteSpace(label))
+        {
+            label = string.Join(", ", new[] { locality, subdivision, countryCode }.Where(value => !string.IsNullOrWhiteSpace(value)));
+        }
+
+        return new WidgetLocationPreference
+        {
+            Source = source,
+            Label = label,
+            Latitude = Math.Round(location.Latitude, 4),
+            Longitude = Math.Round(location.Longitude, 4),
+            Locality = locality,
+            PrincipalSubdivision = subdivision,
+            CountryCode = string.IsNullOrWhiteSpace(countryCode) ? "GB" : countryCode,
+            Postcode = Clean(location.Postcode, 32),
+            Timezone = string.IsNullOrWhiteSpace(location.Timezone) ? "UTC" : Clean(location.Timezone, 64)
+        };
+    }
+
+    private static string Clean(string? value, int maxLength)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        var trimmed = value.Trim().Replace('\n', ' ').Replace('\r', ' ');
+        return trimmed.Length <= maxLength ? trimmed : trimmed[..maxLength];
     }
 
     public async Task UpsertConversationSummaryAsync(Guid chatId, string conversationText, CancellationToken ct)

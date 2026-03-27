@@ -133,10 +133,36 @@ public sealed class CoreBehaviorTests
         await db.SaveChangesAsync();
 
         var memory = new MemoryService(db, new FixedClock(DateTime.UtcNow));
-        var context = await memory.BuildSystemContextAsync(userId, chatId, CancellationToken.None);
+        var context = await memory.BuildSystemContextAsync(userId, chatId, null, CancellationToken.None);
 
         Assert.Contains("name: Neil", context);
         Assert.Contains("pricing plans", context);
+    }
+
+    [Fact]
+    public async Task MemoryService_IncludesLocationContext_WhenProvided()
+    {
+        await using var db = CreateDb();
+        var userId = Guid.NewGuid();
+        var chatId = Guid.NewGuid();
+
+        var memory = new MemoryService(db, new FixedClock(DateTime.UtcNow));
+        var context = await memory.BuildSystemContextAsync(userId, chatId, new WidgetLocationPreference
+        {
+            Source = "manual",
+            Label = "Leeds, England, GB",
+            Latitude = 53.7997,
+            Longitude = -1.5492,
+            Locality = "Leeds",
+            PrincipalSubdivision = "England",
+            CountryCode = "GB",
+            Timezone = "Europe/London"
+        }, CancellationToken.None);
+
+        Assert.Contains("User location context:", context);
+        Assert.Contains("Label: Leeds, England, GB", context);
+        Assert.Contains("Coordinates: 53.7997, -1.5492", context);
+        Assert.Contains("Use this location as the user's current area", context);
     }
 
     private static HyokaDbContext CreateDb()

@@ -552,6 +552,7 @@ api.MapPost("/chats/{chatId:guid}/messages/stream", async (
     SendMessageRequest request,
     HttpContext httpContext,
     HyokaDbContext db,
+    IDashboardPreferencesService dashboardPreferencesService,
     IPlanService planService,
     IUsageService usageService,
     IMemoryService memoryService,
@@ -695,7 +696,14 @@ api.MapPost("/chats/{chatId:guid}/messages/stream", async (
         history = history[^30..];
     }
 
-    var systemPrompt = await memoryService.BuildSystemContextAsync(user.Id, chat.Id, ct);
+    var effectiveLocation = request.Location;
+    if (effectiveLocation is null && !user.IsGuestUser())
+    {
+        var dashboardPreferences = await dashboardPreferencesService.GetAsync(user.Id, ct);
+        effectiveLocation = dashboardPreferences.Location;
+    }
+
+    var systemPrompt = await memoryService.BuildSystemContextAsync(user.Id, chat.Id, effectiveLocation, ct);
 
     var providerRequest = new ProviderChatRequest
     {
