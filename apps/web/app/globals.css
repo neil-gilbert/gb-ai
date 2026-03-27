@@ -66,6 +66,41 @@ a {
   text-decoration: none;
 }
 
+.hub-carousel {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.hub-carousel::-webkit-scrollbar {
+  display: none;
+}
+
+.weather-orb {
+  animation: weather-orb-pulse 7s ease-in-out infinite;
+}
+
+.weather-cloud {
+  filter: blur(0.4px);
+}
+
+.weather-cloud-slow {
+  animation: weather-cloud-drift 16s ease-in-out infinite;
+}
+
+.weather-cloud-fast {
+  animation: weather-cloud-drift-reverse 12s ease-in-out infinite;
+}
+
+.weather-rain-streak {
+  animation: weather-rain-fall 1.55s linear infinite;
+  opacity: 0.82;
+}
+
+.weather-snow-dot {
+  animation: weather-snow-fall 6s linear infinite;
+  opacity: 0.88;
+}
+
 .chat-markdown {
   color: inherit;
   line-height: 1.65;
@@ -729,6 +764,73 @@ a:focus-visible {
   }
 }
 
+@keyframes weather-orb-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.88;
+  }
+
+  50% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+}
+
+@keyframes weather-cloud-drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+
+  50% {
+    transform: translate3d(12px, -6px, 0);
+  }
+}
+
+@keyframes weather-cloud-drift-reverse {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+
+  50% {
+    transform: translate3d(-14px, 8px, 0);
+  }
+}
+
+@keyframes weather-rain-fall {
+  0% {
+    transform: translate3d(0, -18px, 0);
+    opacity: 0;
+  }
+
+  20% {
+    opacity: 0.82;
+  }
+
+  100% {
+    transform: translate3d(-10px, 124px, 0);
+    opacity: 0;
+  }
+}
+
+@keyframes weather-snow-fall {
+  0% {
+    transform: translate3d(0, -14px, 0);
+    opacity: 0;
+  }
+
+  20% {
+    opacity: 0.86;
+  }
+
+  100% {
+    transform: translate3d(10px, 132px, 0);
+    opacity: 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .greeting-heading {
     color: #00247d;
@@ -737,5 +839,13 @@ a:focus-visible {
   .greeting-heading::after {
     animation: none;
     opacity: 0;
+  }
+
+  .weather-orb,
+  .weather-cloud-slow,
+  .weather-cloud-fast,
+  .weather-rain-streak,
+  .weather-snow-dot {
+    animation: none;
   }
 }

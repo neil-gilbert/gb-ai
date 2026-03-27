@@ -12,17 +12,15 @@ import {
   Newspaper,
   Plus,
   RefreshCw,
-  Settings2,
   Sparkles,
   SunMedium,
   Wind,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useState } from "react";
 import HubShell from "@/components/layout/HubShell";
 import { apiFetch } from "@/lib/api";
-import { buildGreetingText } from "@/lib/greeting";
 import { useHubPreferences } from "@/lib/useHubPreferences";
 import type {
   ChatSummary,
@@ -33,26 +31,14 @@ import type {
 } from "@/lib/types";
 import { widgetRegistryMap } from "@/lib/widgets/registry";
 
-type HubProfileResponse = {
-  user: {
-    email: string;
-    isGuest?: boolean;
-  };
-};
-
 export default function HubDashboard() {
   const router = useRouter();
   const { isLoaded, isSignedIn, getToken } = useAuth();
   const { preferences, error: preferencesError } = useHubPreferences();
-  const [profile, setProfile] = useState<HubProfileResponse | null>(null);
   const [recentChats, setRecentChats] = useState<ChatSummary[]>([]);
   const [isHubLoading, setIsHubLoading] = useState(true);
   const [hubError, setHubError] = useState<string | null>(null);
   const [isCreatingChat, setIsCreatingChat] = useState(false);
-  const greetingText = useMemo(
-    () => buildGreetingText(profile?.user.isGuest ? undefined : profile?.user.email),
-    [profile?.user.email, profile?.user.isGuest],
-  );
   const activeWidgets = preferences.orderedWidgetKeys.filter((key) => widgetRegistryMap.has(key));
   const widgetStatusLabel = `${activeWidgets.length} ${activeWidgets.length === 1 ? "live widget" : "live widgets"}`;
 
@@ -73,13 +59,9 @@ export default function HubDashboard() {
           throw new Error("Your session expired. Please sign in again.");
         }
 
-        const [profileData, chatsData] = await Promise.all([
-          apiFetch<HubProfileResponse>("/api/v1/auth/me", { token }),
-          apiFetch<{ items: ChatSummary[] }>("/api/v1/chats", { token }),
-        ]);
+        const chatsData = await apiFetch<{ items: ChatSummary[] }>("/api/v1/chats", { token });
 
         if (!cancelled) {
-          setProfile(profileData);
           setRecentChats(chatsData.items.slice(0, 3));
         }
       } catch (err) {
@@ -130,54 +112,6 @@ export default function HubDashboard() {
       sectionDescription="Live widgets and chat stay on the front page. Setup now lives separately in the left menu."
     >
       <div className="mx-auto flex max-w-7xl flex-col gap-5">
-        <header className="rounded-[2rem] border border-[#C2CFEC] bg-white/88 px-5 py-5 shadow-[0_18px_50px_rgba(8,21,66,0.12)] backdrop-blur md:px-7">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <p className="text-[11px] font-semibold tracking-[0.22em] text-[#4e618f] uppercase">GB-AI Home</p>
-              <h1 className="mt-2 font-serif text-3xl text-[#081542] md:text-4xl">{greetingText}</h1>
-              <p className="mt-3 max-w-2xl text-sm text-[#4e618f] md:text-base">
-                Your front page is now reserved for the live board: local widgets on one side, your conversation launcher on the other.
-              </p>
-              <div className="mt-4 flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center gap-2 rounded-full border border-[#00247D]/10 bg-[#F8FAFF] px-3 py-1 text-xs font-semibold text-[#00247D]">
-                  <MapPin size={13} />
-                  <span>{preferences.location?.label || "Area not set"}</span>
-                </span>
-                <span className="inline-flex items-center gap-2 rounded-full border border-[#00247D]/10 bg-[#F8FAFF] px-3 py-1 text-xs font-semibold text-[#00247D]">
-                  <Sparkles size={13} />
-                  <span>{widgetStatusLabel}</span>
-                </span>
-                {preferences.location?.source === "ip" ? (
-                  <span className="rounded-full bg-amber-50 px-3 py-1 text-[11px] font-semibold text-amber-700">
-                    Approximate area
-                  </span>
-                ) : null}
-              </div>
-            </div>
-
-            <div className="max-w-sm rounded-[1.6rem] border border-[#00247D]/10 bg-[#F8FAFF] p-4">
-              <div className="flex items-start gap-3">
-                <div className="rounded-2xl bg-white p-3 text-[#00247D] shadow-sm">
-                  <Settings2 size={18} />
-                </div>
-                <div>
-                  <p className="text-[11px] font-semibold tracking-[0.18em] text-[#4e618f] uppercase">Setup moved</p>
-                  <p className="mt-2 text-sm leading-6 text-[#4e618f]">
-                    Widget selection, ordering, and local area settings now live in the dedicated setup area from the left menu.
-                  </p>
-                </div>
-              </div>
-              <Link
-                href="/chat"
-                className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#00247D] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#001B54]"
-              >
-                <Sparkles size={15} />
-                <span>Open chat</span>
-              </Link>
-            </div>
-          </div>
-        </header>
-
         {(hubError || preferencesError) ? (
           <div className="grid gap-3">
             {hubError ? (
@@ -193,37 +127,63 @@ export default function HubDashboard() {
           </div>
         ) : null}
 
-        <section className="grid gap-4 lg:grid-cols-4">
-          <ChatLauncherCard
-            chats={recentChats}
-            isLoading={isHubLoading}
-            isCreatingChat={isCreatingChat}
-            onCreateChat={createChatAndOpen}
-          />
+        <section className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2 px-1">
+            <span className="inline-flex items-center gap-2 rounded-full border border-[#00247D]/10 bg-white/90 px-3 py-1 text-xs font-semibold text-[#00247D] shadow-sm">
+              <MapPin size={13} />
+              <span>{preferences.location?.label || "Area not set"}</span>
+            </span>
+            <span className="inline-flex items-center gap-2 rounded-full border border-[#00247D]/10 bg-white/90 px-3 py-1 text-xs font-semibold text-[#00247D] shadow-sm">
+              <Sparkles size={13} />
+              <span>{widgetStatusLabel}</span>
+            </span>
+            {preferences.location?.source === "ip" ? (
+              <span className="rounded-full bg-amber-50 px-3 py-1 text-[11px] font-semibold text-amber-700 shadow-sm">
+                Approximate area
+              </span>
+            ) : null}
+          </div>
 
-          {activeWidgets.length === 0 ? (
-            <OnboardingCard hasLocation={Boolean(preferences.location)} />
-          ) : (
-            activeWidgets.map((widgetKey) => {
-              if (!preferences.location) {
-                return <LocationRequiredCard key={widgetKey} widgetKey={widgetKey} />;
-              }
+          <div className="hub-carousel -mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 md:pb-0">
+            {activeWidgets.length === 0 ? (
+              <WidgetRailItem>
+                <OnboardingCard hasLocation={Boolean(preferences.location)} />
+              </WidgetRailItem>
+            ) : (
+              activeWidgets.map((widgetKey) => {
+                let card: ReactNode = null;
 
-              if (widgetKey === "weather.local") {
-                return <WeatherWidgetCard key={widgetKey} location={preferences.location} />;
-              }
+                if (!preferences.location) {
+                  card = <LocationRequiredCard widgetKey={widgetKey} />;
+                } else if (widgetKey === "weather.local") {
+                  card = <WeatherWidgetCard location={preferences.location} />;
+                } else if (widgetKey === "news.local") {
+                  card = <NewsWidgetCard location={preferences.location} />;
+                }
 
-              if (widgetKey === "news.local") {
-                return <NewsWidgetCard key={widgetKey} location={preferences.location} />;
-              }
+                if (!card) {
+                  return null;
+                }
 
-              return null;
-            })
-          )}
+                return <WidgetRailItem key={widgetKey}>{card}</WidgetRailItem>;
+              })
+            )}
+          </div>
         </section>
+
+        <ChatLauncherCard
+          chats={recentChats}
+          isLoading={isHubLoading}
+          isCreatingChat={isCreatingChat}
+          onCreateChat={createChatAndOpen}
+        />
       </div>
     </HubShell>
   );
+}
+
+function WidgetRailItem({ children }: { children: ReactNode }) {
+  return <div className="min-w-[min(86vw,32rem)] snap-start md:min-w-0">{children}</div>;
 }
 
 function ChatLauncherCard({
@@ -240,7 +200,7 @@ function ChatLauncherCard({
   const primaryChat = chats[0];
 
   return (
-    <section className="rounded-[1.75rem] border border-[#C2CFEC] bg-[linear-gradient(145deg,rgba(255,255,255,0.98),rgba(232,238,249,0.92))] p-5 shadow-[0_18px_46px_rgba(8,21,66,0.12)] lg:col-span-2">
+    <section className="rounded-[1.9rem] border border-[#C2CFEC] bg-[linear-gradient(145deg,rgba(255,255,255,0.98),rgba(232,238,249,0.92))] p-5 shadow-[0_18px_46px_rgba(8,21,66,0.12)]">
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-[11px] font-semibold tracking-[0.18em] text-[#4e618f] uppercase">Chat</p>
@@ -269,7 +229,7 @@ function ChatLauncherCard({
             <div className="flex flex-wrap gap-2">
               <Link
                 href={`/chat?chat=${primaryChat.id}`}
-                className="inline-flex items-center gap-2 rounded-full bg-[#00247D] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#001B54]"
+                className="inline-flex items-center gap-2 rounded-full bg-[#00247D] px-4 py-2 text-sm font-semibold !text-white transition-colors hover:bg-[#001B54]"
               >
                 <ArrowRight size={15} />
                 <span>Open chat</span>
@@ -292,7 +252,7 @@ function ChatLauncherCard({
               type="button"
               onClick={onCreateChat}
               disabled={isCreatingChat}
-              className="inline-flex items-center gap-2 rounded-full bg-[#00247D] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#001B54] disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-full bg-[#00247D] px-4 py-2 text-sm font-semibold !text-white transition-colors hover:bg-[#001B54] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isCreatingChat ? <LoaderCircle size={15} className="animate-spin" /> : <Plus size={15} />}
               <span>Start the first chat</span>
@@ -310,7 +270,7 @@ function OnboardingCard({
   hasLocation: boolean;
 }) {
   return (
-    <section className="rounded-[1.75rem] border border-dashed border-[#C2CFEC] bg-white/92 p-6 shadow-[0_14px_34px_rgba(8,21,66,0.08)] lg:col-span-2">
+    <section className="h-full rounded-[1.9rem] border border-dashed border-[#C2CFEC] bg-white/92 p-6 shadow-[0_14px_34px_rgba(8,21,66,0.08)]">
       <p className="text-[11px] font-semibold tracking-[0.18em] text-[#4e618f] uppercase">Clean slate</p>
       <h2 className="mt-2 font-serif text-2xl text-[#081542]">No widgets are pinned to the hub yet</h2>
       <p className="mt-3 max-w-xl text-sm text-[#4e618f]">
@@ -322,9 +282,9 @@ function OnboardingCard({
       <div className="mt-5 flex flex-wrap gap-2">
         <Link
           href="/widgets"
-          className="inline-flex items-center gap-2 rounded-full bg-[#00247D] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#001B54]"
+          className="inline-flex items-center gap-2 rounded-full bg-[#00247D] px-4 py-2 text-sm font-semibold !text-white transition-colors hover:bg-[#001B54]"
         >
-          <Settings2 size={15} />
+          <Sparkles size={15} />
           <span>Open setup</span>
         </Link>
       </div>
@@ -341,7 +301,7 @@ function LocationRequiredCard({ widgetKey }: { widgetKey: WidgetKey }) {
   const Icon = widget.icon;
 
   return (
-    <section className={`rounded-[1.75rem] border border-dashed border-[#C2CFEC] bg-white/92 p-5 shadow-[0_14px_34px_rgba(8,21,66,0.08)] ${widget.desktopSpan} ${widget.mobileSpan}`}>
+    <section className="h-full rounded-[1.9rem] border border-dashed border-[#C2CFEC] bg-white/92 p-5 shadow-[0_14px_34px_rgba(8,21,66,0.08)]">
       <div className="flex items-center gap-3">
         <div className="rounded-2xl bg-[#F8FAFF] p-3 text-[#00247D]">
           <Icon size={18} />
@@ -353,9 +313,9 @@ function LocationRequiredCard({ widgetKey }: { widgetKey: WidgetKey }) {
       </div>
       <Link
         href="/widgets"
-        className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#00247D] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#001B54]"
+        className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#00247D] px-4 py-2 text-sm font-semibold !text-white transition-colors hover:bg-[#001B54]"
       >
-        <Settings2 size={15} />
+        <Sparkles size={15} />
         <span>Open setup</span>
       </Link>
     </section>
@@ -395,7 +355,7 @@ function WeatherWidgetCard({ location }: { location: WidgetLocationPreference })
   }, [location.latitude, location.longitude, location.timezone]);
 
   return (
-    <section className="rounded-[1.75rem] border border-[#C2CFEC] bg-white/92 p-5 shadow-[0_18px_46px_rgba(8,21,66,0.12)] lg:col-span-2">
+    <section className="h-full overflow-hidden rounded-[2rem] border border-[#C2CFEC] bg-white/92 p-5 shadow-[0_18px_46px_rgba(8,21,66,0.12)]">
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-[11px] font-semibold tracking-[0.18em] text-[#4e618f] uppercase">Weather</p>
@@ -417,40 +377,22 @@ function WeatherWidgetCard({ location }: { location: WidgetLocationPreference })
           <span>Loading forecast...</span>
         </div>
       ) : (
-        <div className="mt-6 grid gap-4 md:grid-cols-[1.1fr_1.4fr]">
-          <div className="rounded-2xl bg-[#F8FAFF] p-4">
-            <p className="text-[11px] font-semibold tracking-[0.18em] text-[#4e618f] uppercase">Now</p>
-            <div className="mt-3 flex items-end gap-3">
-              <span className="font-serif text-5xl text-[#081542]">{Math.round(data.current.temperatureC)}&deg;</span>
-              <span className="pb-2 text-sm text-[#4e618f]">{data.current.condition}</span>
-            </div>
-            <div className="mt-4 grid gap-2 text-sm text-[#4e618f]">
-              <div className="flex items-center gap-2">
-                <CloudSun size={15} className="text-[#00247D]" />
-                <span>Feels like {Math.round(data.current.apparentTemperatureC)}&deg;</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Wind size={15} className="text-[#00247D]" />
-                <span>{Math.round(data.current.windSpeedKph)} km/h wind</span>
-              </div>
-            </div>
-          </div>
+        <div className="mt-6 space-y-4">
+          <WeatherSceneCard data={data} location={location} />
 
-          <div className="grid gap-3 sm:grid-cols-5">
-            {data.forecast.map((day) => {
-              return (
-                <div key={day.date} className="rounded-2xl border border-[#00247D]/10 bg-white p-3 shadow-sm">
-                  <p className="text-xs font-semibold text-[#081542]">{formatDayLabel(day.date)}</p>
-                  <div className="mt-3 flex items-center gap-2 text-[#00247D]">
-                    <WeatherGlyph weatherCode={day.weatherCode} isDay size={16} />
-                    <span className="text-xs text-[#4e618f]">{day.condition}</span>
-                  </div>
-                  <p className="mt-4 text-sm font-semibold text-[#081542]">
-                    {Math.round(day.maxTemperatureC)}&deg; / {Math.round(day.minTemperatureC)}&deg;
-                  </p>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+            {data.forecast.map((day) => (
+              <div key={day.date} className="rounded-[1.35rem] border border-[#00247D]/10 bg-white p-3 shadow-sm">
+                <p className="text-xs font-semibold text-[#081542]">{formatDayLabel(day.date)}</p>
+                <div className="mt-3 flex items-center gap-2 text-[#00247D]">
+                  <WeatherGlyph weatherCode={day.weatherCode} isDay size={16} />
+                  <span className="text-xs text-[#4e618f]">{day.condition}</span>
                 </div>
-              );
-            })}
+                <p className="mt-4 text-sm font-semibold text-[#081542]">
+                  {Math.round(day.maxTemperatureC)}&deg; / {Math.round(day.minTemperatureC)}&deg;
+                </p>
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -492,7 +434,7 @@ function NewsWidgetCard({ location }: { location: WidgetLocationPreference }) {
   }, [location.countryCode, location.locality, location.principalSubdivision, refreshNonce]);
 
   return (
-    <section className="rounded-[1.75rem] border border-[#C2CFEC] bg-white/92 p-5 shadow-[0_18px_46px_rgba(8,21,66,0.12)] lg:col-span-2">
+    <section className="h-full rounded-[2rem] border border-[#C2CFEC] bg-white/92 p-5 shadow-[0_18px_46px_rgba(8,21,66,0.12)]">
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-[11px] font-semibold tracking-[0.18em] text-[#4e618f] uppercase">News</p>
@@ -569,6 +511,120 @@ function NewsWidgetCard({ location }: { location: WidgetLocationPreference }) {
       )}
     </section>
   );
+}
+
+function WeatherSceneCard({
+  data,
+  location,
+}: {
+  data: WeatherWidgetData;
+  location: WidgetLocationPreference;
+}) {
+  const scene = getWeatherSceneTone(data.current.weatherCode, data.current.isDay);
+
+  return (
+    <div className={`relative overflow-hidden rounded-[1.8rem] p-5 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.26)] ${scene.panelClass}`}>
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.42),transparent_42%),linear-gradient(180deg,rgba(255,255,255,0.14),rgba(255,255,255,0.02))]" />
+      <div className={`weather-orb absolute right-6 top-6 h-16 w-16 rounded-full ${scene.orbClass}`} />
+      <div className="weather-cloud weather-cloud-slow absolute left-6 top-10 h-10 w-28 rounded-full bg-white/28" />
+      <div className="weather-cloud weather-cloud-fast absolute top-[6.5rem] right-[4.5rem] h-9 w-24 rounded-full bg-white/18" />
+      <div className="weather-cloud weather-cloud-slow absolute bottom-14 left-[4.5rem] h-7 w-20 rounded-full bg-white/18" />
+      {scene.precipitation === "rain" ? <RainStreaks /> : null}
+      {scene.precipitation === "snow" ? <SnowDots /> : null}
+
+      <div className="relative flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+        <div>
+          <p className="text-[11px] font-semibold tracking-[0.18em] text-white/72 uppercase">Now</p>
+          <div className="mt-4 flex items-end gap-3">
+            <span className="font-serif text-6xl leading-none">{Math.round(data.current.temperatureC)}&deg;</span>
+            <div className="pb-2">
+              <p className="text-base font-semibold text-white">{data.current.condition}</p>
+              <p className="mt-1 text-xs text-white/76">Feels like {Math.round(data.current.apparentTemperatureC)}&deg;</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-[1.4rem] border border-white/18 bg-white/12 px-4 py-3 backdrop-blur-sm">
+          <div className="flex items-center gap-2 text-sm text-white/92">
+            <Wind size={15} />
+            <span>{Math.round(data.current.windSpeedKph)} km/h wind</span>
+          </div>
+          <div className="mt-2 flex items-center gap-2 text-sm text-white/80">
+            <WeatherGlyph weatherCode={data.current.weatherCode} isDay={data.current.isDay} size={16} />
+            <span>{location.locality || location.label}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RainStreaks() {
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden">
+      {[16, 31, 47, 61, 73, 86].map((left, index) => (
+        <span
+          key={left}
+          className="weather-rain-streak absolute top-12 h-16 w-px rounded-full bg-white/68"
+          style={{ left: `${left}%`, animationDelay: `${index * 0.18}s` }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function SnowDots() {
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden">
+      {[14, 25, 38, 52, 67, 79, 91].map((left, index) => (
+        <span
+          key={left}
+          className="weather-snow-dot absolute top-10 h-2.5 w-2.5 rounded-full bg-white/78"
+          style={{ left: `${left}%`, animationDelay: `${index * 0.45}s` }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function getWeatherSceneTone(weatherCode: number, isDay: boolean) {
+  if (!isDay) {
+    return {
+      panelClass: "bg-[linear-gradient(145deg,#102158_0%,#18367f_45%,#2b4ea4_100%)]",
+      orbClass: "bg-[radial-gradient(circle,#dbe8ff_0%,rgba(219,232,255,0.28)_58%,transparent_72%)]",
+      precipitation: "none" as const,
+    };
+  }
+
+  if ([61, 63, 65, 80, 81, 82, 95, 96, 99].includes(weatherCode)) {
+    return {
+      panelClass: "bg-[linear-gradient(145deg,#2750a2_0%,#4068c2_42%,#5f84dd_100%)]",
+      orbClass: "bg-[radial-gradient(circle,#fff9d6_0%,rgba(255,249,214,0.34)_54%,transparent_72%)]",
+      precipitation: "rain" as const,
+    };
+  }
+
+  if ([71, 73, 75, 77, 85, 86].includes(weatherCode)) {
+    return {
+      panelClass: "bg-[linear-gradient(145deg,#6f8ec7_0%,#8aa6dd_45%,#b1c5f2_100%)]",
+      orbClass: "bg-[radial-gradient(circle,#ffffff_0%,rgba(255,255,255,0.3)_58%,transparent_76%)]",
+      precipitation: "snow" as const,
+    };
+  }
+
+  if ([1, 2, 3, 45, 48].includes(weatherCode)) {
+    return {
+      panelClass: "bg-[linear-gradient(145deg,#4d74c2_0%,#6b90db_45%,#8fb0f0_100%)]",
+      orbClass: "bg-[radial-gradient(circle,#fff4c4_0%,rgba(255,244,196,0.34)_56%,transparent_74%)]",
+      precipitation: "none" as const,
+    };
+  }
+
+  return {
+    panelClass: "bg-[linear-gradient(145deg,#3072d3_0%,#5d97f0_45%,#88b6ff_100%)]",
+    orbClass: "bg-[radial-gradient(circle,#ffe082_0%,rgba(255,224,130,0.38)_52%,transparent_72%)]",
+    precipitation: "none" as const,
+  };
 }
 
 function WeatherGlyph({

@@ -109,7 +109,7 @@ export default function HubShell({ children, sectionTitle, sectionDescription }:
                   onClick={() => setIsSidebarOpen(false)}
                   className={`group flex items-center gap-3 rounded-[1.3rem] px-4 py-3 transition-all duration-200 ${
                     isActive
-                      ? "bg-[#00247D] text-white shadow-[0_14px_30px_rgba(0,36,125,0.18)]"
+                      ? "bg-[#00247D] !text-white shadow-[0_14px_30px_rgba(0,36,125,0.18)]"
                       : "bg-white/70 text-[#17306f] hover:bg-white"
                   }`}
                 >
@@ -163,7 +163,7 @@ export default function HubShell({ children, sectionTitle, sectionDescription }:
                 <SignUpButton mode="modal">
                   <button
                     type="button"
-                    className="rounded-[1rem] bg-[#00247D] px-3 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-[#001B54]"
+                    className="rounded-[1rem] bg-[#00247D] px-3 py-2.5 text-xs font-semibold !text-white transition-colors hover:bg-[#001B54]"
                   >
                     Sign Up
                   </button>

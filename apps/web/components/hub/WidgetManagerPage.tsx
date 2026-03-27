@@ -164,7 +164,7 @@ export default function WidgetManagerPage() {
                   void applyRecommendedWidgets().catch(() => {});
                 }}
                 disabled={isLoading || isSaving}
-                className="inline-flex items-center gap-2 rounded-full bg-[#00247D] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#001B54] disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-full bg-[#00247D] px-4 py-2 text-sm font-semibold !text-white transition-colors hover:bg-[#001B54] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isSaving ? <LoaderCircle size={15} className="animate-spin" /> : <Sparkles size={15} />}
                 <span>Add recommended starters</span>
@@ -195,7 +195,7 @@ export default function WidgetManagerPage() {
                           <div className="flex items-center gap-2">
                             <h3 className="text-sm font-semibold text-[#081542]">{widget.title}</h3>
                             <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${
-                              isEnabled ? "bg-[#00247D] text-white" : "bg-slate-100 text-slate-500"
+                              isEnabled ? "bg-[#00247D] !text-white" : "bg-slate-100 text-slate-500"
                             }`}>
                               {isEnabled ? "Live" : "Off"}
                             </span>
@@ -214,7 +214,7 @@ export default function WidgetManagerPage() {
                           className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
                             isEnabled
                               ? "border border-[#00247D]/15 bg-white text-[#00247D] hover:bg-[#F4F7FF]"
-                              : "bg-[#00247D] text-white hover:bg-[#001B54]"
+                              : "bg-[#00247D] !text-white hover:bg-[#001B54]"
                           }`}
                         >
                           {isEnabled ? "Remove" : "Add widget"}
@@ -281,7 +281,7 @@ export default function WidgetManagerPage() {
                   void handleCurrentLocation().catch(() => {});
                 }}
                 disabled={locationBusy || isSaving}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#00247D] px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#001B54] disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#00247D] px-4 py-3 text-sm font-semibold !text-white transition-colors hover:bg-[#001B54] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {locationBusy ? <LoaderCircle size={16} className="animate-spin" /> : <MapPin size={16} />}
                 <span>Use my current area</span>
